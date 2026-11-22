@@ -18,18 +18,27 @@ import '../../events/screens/event_detail_screen.dart';
 import '../../events/screens/events_screen.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
 import '../../attendance/screens/attendance_screen.dart';
-import '../../../core/providers/auto_refresh_provider.dart';
 import '../../../core/utils/app_utils.dart';
 
-final activeEventsProvider = FutureProvider<List<Event>>((ref) async {
-  // Auto-refresh active registration events
-  ref.watch(autoRefreshProvider);
-  final data = await SupabaseConfig.client
-      .from(SupabaseTables.events)
-      .select()
-      .inFilter('status', ['registration_open', 'ongoing'])
-      .order('title');
-  return (data as List).map((e) => Event.fromJson(e)).toList();
+final activeEventsProvider = StreamProvider<List<Event>>((ref) async* {
+  Future<List<Event>> fetchEvents() async {
+    try {
+      final data = await SupabaseConfig.client
+          .from(SupabaseTables.events)
+          .select()
+          .inFilter('status', ['registration_open', 'ongoing'])
+          .order('name');
+      return (data as List).map((e) => Event.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('Error fetching active registration events: $e');
+      return [];
+    }
+  }
+
+  yield await fetchEvents();
+  await for (final _ in Stream.periodic(const Duration(seconds: 4))) {
+    yield await fetchEvents();
+  }
 });
 
 const _branchDisplayNames = {
@@ -140,21 +149,25 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
           .from(SupabaseTables.events)
           .select()
           .inFilter('status', ['registration_open', 'ongoing'])
-          .order('title');
+          .order('name');
       
-      setState(() {
-        _events = (data as List).map((e) => Event.fromJson(e)).toList();
-        if (widget.initialEvent != null) {
-          _selectedEvent = _events.firstWhere(
-            (e) => e.id == widget.initialEvent!.id,
-            orElse: () => widget.initialEvent!,
-          );
-        }
-        _loadingEvents = false;
-      });
+      if (mounted) {
+        setState(() {
+          _events = (data as List).map((e) => Event.fromJson(e)).toList();
+          if (widget.initialEvent != null) {
+            _selectedEvent = _events.firstWhere(
+              (e) => e.id == widget.initialEvent!.id,
+              orElse: () => widget.initialEvent!,
+            );
+          }
+        });
+      }
     } catch (e) {
       debugPrint('Error loading events: $e');
-      setState(() => _loadingEvents = false);
+    } finally {
+      if (mounted) {
+        setState(() => _loadingEvents = false);
+      }
     }
   }
 

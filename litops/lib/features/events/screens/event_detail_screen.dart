@@ -440,6 +440,87 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                         ),
                       SizedBox(height: context.r.h(16)),
 
+                      // If ongoing or completed or results published - prominent Results Action Card in Overview
+                      if (isOngoing || currentStatus == EventStatus.completed || currentStatus == EventStatus.resultsPublished)
+                        Container(
+                          margin: EdgeInsets.only(bottom: context.r.h(16)),
+                          padding: EdgeInsets.all(context.r.w(14)),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF241C18), Color(0xFF191513)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(context.r.radius(14)),
+                            border: Border.all(
+                              color: currentStatus == EventStatus.resultsPublished
+                                  ? LitColors.moss.withValues(alpha: 0.4)
+                                  : LitColors.ember.withValues(alpha: 0.5),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(context.r.w(10)),
+                                decoration: BoxDecoration(
+                                  color: currentStatus == EventStatus.resultsPublished
+                                      ? LitColors.moss.withValues(alpha: 0.15)
+                                      : LitColors.ember.withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.emoji_events_rounded,
+                                  color: currentStatus == EventStatus.resultsPublished ? LitColors.moss : LitColors.amber,
+                                  size: context.r.icon(24),
+                                ),
+                              ),
+                              SizedBox(width: context.r.w(12)),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      currentStatus == EventStatus.resultsPublished
+                                          ? 'Results Published'
+                                          : 'Event Active: Ready for Results',
+                                      style: GoogleFonts.fredoka(
+                                        color: LitColors.bone,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: context.r.sp(14),
+                                      ),
+                                    ),
+                                    Text(
+                                      'Assign 1st, 2nd, 3rd, or custom positions with points to update leaderboard.',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: LitColors.ash,
+                                        fontSize: context.r.sp(10.5),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: context.r.w(8)),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: LitColors.ember,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  padding: EdgeInsets.symmetric(horizontal: context.r.w(12), vertical: context.r.h(8)),
+                                ),
+                                onPressed: () => context.push('/results/score/$eventId'),
+                                child: Text(
+                                  currentStatus == EventStatus.resultsPublished ? 'Edit Results' : 'Publish Results',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    fontSize: context.r.sp(12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
                       // Details Grid
                       GridView.count(
                         shrinkWrap: true,
@@ -451,6 +532,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                         children: [
                           _buildDetailStat(context, 'VENUE', event.venue ?? 'TBD'),
                           _buildDetailStat(context, 'DATE', event.eventDate != null ? AppUtils.formatDate(event.eventDate!) : 'TBD'),
+                          _buildDetailStat(context, 'REGISTRATIONS', '${regCountAsync.value ?? 0}'),
+                          _buildDetailStat(context, 'ATTENDED', '${attCountAsync.value ?? 0}'),
                           _buildDetailStat(context, 'TEAM SIZE', '${event.teamSize}'),
                           _buildDetailStat(context, 'CAPACITY', event.capacity != null ? '${event.capacity}' : 'Unlimited'),
                         ],
@@ -526,7 +609,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (isAllowedToRegister) ...[
+                      if (currentStatus == EventStatus.registrationOpen && isAllowedToRegister) ...[
                         ClayButton(
                           onPressed: () => context.go('/registration', extra: event),
                           child: Row(
@@ -546,7 +629,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                             fontSize: context.r.sp(10),
                           ),
                         ),
-                      ] else if (isOngoing || currentStatus == EventStatus.completed || currentStatus == EventStatus.resultsPublished) ...[
+                      ],
+                      if (isOngoing || currentStatus == EventStatus.completed || currentStatus == EventStatus.resultsPublished) ...[
                         if (roleConfig.canManageResults || roleConfig.canManageEvents) ...[
                           ClayButton(
                             onPressed: () => context.push('/results/score/$eventId'),

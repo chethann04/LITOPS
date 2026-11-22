@@ -29,7 +29,7 @@ class _AssignmentScreenState extends ConsumerState<AssignmentScreen> {
   void initState() { super.initState(); _loadData(); }
 
   Future<void> _loadData() async {
-    final eventData = await SupabaseConfig.client.from(SupabaseTables.events).select().order('title');
+    final eventData = await SupabaseConfig.client.from(SupabaseTables.events).select().order('name');
     final userData = await SupabaseConfig.client.from(SupabaseTables.profiles).select().eq('is_active', true);
     setState(() {
       _events = (eventData as List).map((e) => Event.fromJson(e)).toList();

@@ -40,7 +40,7 @@ class _CertificatesScreenState extends ConsumerState<CertificatesScreen> {
         .from(SupabaseTables.events)
         .select()
         .inFilter('status', ['completed', 'results_published'])
-        .order('title');
+        .order('name');
     setState(() => _events = (data as List).map((e) => Event.fromJson(e)).toList());
   }
 

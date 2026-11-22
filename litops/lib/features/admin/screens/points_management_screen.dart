@@ -15,7 +15,7 @@ final adminEventsProvider = FutureProvider<List<Event>>((ref) async {
   final data = await SupabaseConfig.client
       .from(SupabaseTables.events)
       .select()
-      .order('title');
+      .order('name');
   return (data as List).map((e) => Event.fromJson(e)).toList();
 });
 

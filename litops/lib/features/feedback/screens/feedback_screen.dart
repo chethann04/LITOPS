@@ -27,7 +27,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
   }
 
   Future<void> _loadEvents() async {
-    final data = await SupabaseConfig.client.from(SupabaseTables.events).select().order('title');
+    final data = await SupabaseConfig.client.from(SupabaseTables.events).select().order('name');
     setState(() {
       _events = (data as List).map((e) => Event.fromJson(e)).toList();
       if (_events.isNotEmpty) {

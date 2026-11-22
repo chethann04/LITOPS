@@ -6,27 +6,53 @@ import '../../../core/models/models.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
-import '../../../core/providers/auto_refresh_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
-final eventAttendanceProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, eventId) async {
-  // Automatically refresh attendance data every 3 seconds
-  ref.watch(autoRefreshProvider);
-  
-  final regs = await SupabaseConfig.client.from(SupabaseTables.registrations).select('id,student_id,student_master(name,usn,branch)').eq('event_id', eventId).eq('is_cancelled', false);
-  final att = await SupabaseConfig.client.from(SupabaseTables.attendance).select('registration_id').eq('event_id', eventId);
-  final attIds = (att as List).map((a) => a['registration_id']).toSet();
-  return {'registrations': regs, 'attended': attIds, 'total': (regs as List).length, 'attendedCount': attIds.length};
+final eventAttendanceProvider = StreamProvider.family<Map<String, dynamic>, String>((ref, eventId) async* {
+  Future<Map<String, dynamic>> fetch() async {
+    try {
+      final regs = await SupabaseConfig.client
+          .from(SupabaseTables.registrations)
+          .select('id,student_id,student_master(name,usn,branch)')
+          .eq('event_id', eventId)
+          .eq('is_cancelled', false);
+      final att = await SupabaseConfig.client
+          .from(SupabaseTables.attendance)
+          .select('registration_id')
+          .eq('event_id', eventId);
+      final attIds = (att as List).map((a) => a['registration_id']).toSet();
+      return {'registrations': regs, 'attended': attIds, 'total': (regs as List).length, 'attendedCount': attIds.length};
+    } catch (e) {
+      debugPrint('Error fetching event attendance: $e');
+      return {'registrations': [], 'attended': <dynamic>{}, 'total': 0, 'attendedCount': 0};
+    }
+  }
+
+  yield await fetch();
+  await for (final _ in Stream.periodic(const Duration(seconds: 4))) {
+    yield await fetch();
+  }
 });
 
-final attendanceEventsProvider = FutureProvider<List<Event>>((ref) async {
-  ref.watch(autoRefreshProvider);
-  final res = await SupabaseConfig.client
-      .from(SupabaseTables.events)
-      .select()
-      .inFilter('status', ['ongoing', 'registration_open', 'registration_closed'])
-      .order('title');
-  return (res as List).map((e) => Event.fromJson(e)).toList();
+final attendanceEventsProvider = StreamProvider<List<Event>>((ref) async* {
+  Future<List<Event>> fetchEvents() async {
+    try {
+      final res = await SupabaseConfig.client
+          .from(SupabaseTables.events)
+          .select()
+          .inFilter('status', ['ongoing', 'registration_open', 'registration_closed'])
+          .order('name');
+      return (res as List).map((e) => Event.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('Error fetching attendance events: $e');
+      return [];
+    }
+  }
+
+  yield await fetchEvents();
+  await for (final _ in Stream.periodic(const Duration(seconds: 4))) {
+    yield await fetchEvents();
+  }
 });
 
 class AttendanceScreen extends ConsumerWidget {

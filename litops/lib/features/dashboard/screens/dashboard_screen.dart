@@ -491,17 +491,34 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-                if (!isOngoing && event.eventDate != null) ...[
-                  SizedBox(height: r.h(4)),
-                  Row(
-                    children: [
-                      Icon(Icons.calendar_today_outlined, size: r.icon(12), color: LitColors.ash),
-                      SizedBox(width: r.w(4)),
-                      Text(
-                        DateFormat('MMM d, yyyy').format(event.eventDate!),
-                        style: GoogleFonts.plusJakartaSans(fontSize: r.sp(11), color: LitColors.ash),
+                if (isOngoing) ...[
+                  SizedBox(height: r.h(6)),
+                  InkWell(
+                    onTap: () => context.push('/results/score/${event.id}'),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: r.w(8), vertical: r.h(4)),
+                      decoration: BoxDecoration(
+                        color: LitColors.ember.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: LitColors.ember.withValues(alpha: 0.35)),
                       ),
-                    ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.emoji_events_rounded, size: r.icon(12), color: LitColors.ember),
+                          SizedBox(width: r.w(4)),
+                          Text(
+                            'Publish Results',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.ember,
+                              fontWeight: FontWeight.bold,
+                              fontSize: r.sp(10.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ],

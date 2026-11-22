@@ -116,17 +116,23 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
   }
 
   Future<void> _loadEvents() async {
-    final data = await SupabaseConfig.client
-        .from(SupabaseTables.events)
-        .select()
-        .inFilter('status', ['registration_open', 'ongoing']).order('title');
-    setState(() {
-      _events = (data as List).map((e) => Event.fromJson(e)).toList();
-      if (_selectedEvent != null) {
-        _selectedEvent = _events.firstWhere((e) => e.id == _selectedEvent!.id,
-            orElse: () => _selectedEvent!);
+    try {
+      final data = await SupabaseConfig.client
+          .from(SupabaseTables.events)
+          .select()
+          .inFilter('status', ['registration_open', 'ongoing']).order('name');
+      if (mounted) {
+        setState(() {
+          _events = (data as List).map((e) => Event.fromJson(e)).toList();
+          if (_selectedEvent != null) {
+            _selectedEvent = _events.firstWhere((e) => e.id == _selectedEvent!.id,
+                orElse: () => _selectedEvent!);
+          }
+        });
       }
-    });
+    } catch (e) {
+      debugPrint('Error loading events in barcode_scan: $e');
+    }
   }
 
   Future<void> _searchStudent(String usn) async {

@@ -41,7 +41,7 @@ class _AttendanceScanScreenState extends ConsumerState<AttendanceScanScreen> {
 
   Future<void> _loadEvents() async {
     final data = await SupabaseConfig.client.from(SupabaseTables.events).select()
-        .inFilter('status', ['ongoing', 'registration_open', 'registration_closed']).order('title');
+        .inFilter('status', ['ongoing', 'registration_open', 'registration_closed']).order('name');
     setState(() => _events = (data as List).map((e) => Event.fromJson(e)).toList());
   }
 

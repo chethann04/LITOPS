@@ -370,6 +370,49 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
                   ],
                 ),
                 EventConstraintBadges(eventId: event.id),
+                if (event.status == EventStatus.ongoing || event.status == EventStatus.completed || event.status == EventStatus.resultsPublished) ...[
+                  SizedBox(height: r.h(8)),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: InkWell(
+                      onTap: () => context.push('/results/score/${event.id}'),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: r.w(10), vertical: r.h(5)),
+                        decoration: BoxDecoration(
+                          color: event.status == EventStatus.resultsPublished
+                              ? LitColors.moss.withValues(alpha: 0.15)
+                              : LitColors.ember.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: event.status == EventStatus.resultsPublished
+                                ? LitColors.moss.withValues(alpha: 0.4)
+                                : LitColors.ember.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.emoji_events_rounded,
+                              size: r.icon(14),
+                              color: event.status == EventStatus.resultsPublished ? LitColors.moss : LitColors.ember,
+                            ),
+                            SizedBox(width: r.w(5)),
+                            Text(
+                              event.status == EventStatus.resultsPublished ? 'Results Published' : 'Publish Results',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: event.status == EventStatus.resultsPublished ? LitColors.moss : LitColors.ember,
+                                fontWeight: FontWeight.bold,
+                                fontSize: r.sp(11.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

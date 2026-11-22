@@ -56,7 +56,7 @@ class _TeamRegistrationScreenState
         .from(SupabaseTables.events)
         .select()
         .eq('is_team_event', true)
-        .inFilter('status', ['registration_open', 'ongoing']).order('title');
+        .inFilter('status', ['registration_open', 'ongoing']).order('name');
     setState(
         () => _events = (data as List).map((e) => Event.fromJson(e)).toList());
   }
