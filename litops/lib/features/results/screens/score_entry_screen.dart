@@ -1182,24 +1182,25 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
       bottomNavigationBar: _candidates.isEmpty
           ? null
           : Container(
-              padding: EdgeInsets.all(r.w(14)),
+              height: r.h(70) + r.bottomSafeArea,
+              padding: EdgeInsets.fromLTRB(r.w(14), r.h(10), r.w(14), r.h(10) + r.bottomSafeArea),
               decoration: const BoxDecoration(
                 color: Color(0xFF141110),
                 border: Border(
                   top: BorderSide(color: Color(0xFF262220), width: 1.0),
                 ),
               ),
-              child: SafeArea(
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: SizedBox(
+                      height: r.h(48),
                       child: OutlinedButton.icon(
                         onPressed: _addPosition,
-                        icon: const Icon(Icons.add,
-                            size: 16, color: LitColors.bone),
+                        icon: const Icon(Icons.add_rounded, size: 16, color: LitColors.bone),
                         label: Text(
-                          '+ Position',
+                          'Add Position',
                           style: GoogleFonts.plusJakartaSans(
                             color: LitColors.bone,
                             fontWeight: FontWeight.bold,
@@ -1208,46 +1209,43 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                         ),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Color(0xFF332B28)),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                          padding: EdgeInsets.symmetric(vertical: r.h(12)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                       ),
                     ),
-                    SizedBox(width: r.w(10)),
-                    Expanded(
-                      flex: 3,
-                      child: ClayButton(
-                        onPressed: _saving ? null : _publishResults,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            if (_saving)
-                              const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
-                              )
-                            else ...[
-                              Icon(Icons.emoji_events,
-                                  size: r.icon(18), color: Colors.white),
-                              SizedBox(width: r.w(8)),
-                            ],
-                            Text(
-                              _saving ? 'Publishing...' : 'Publish Results',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontWeight: FontWeight.bold,
-                                fontSize: r.sp(13),
-                                color: Colors.white,
-                              ),
-                            ),
+                  ),
+                  SizedBox(width: r.w(10)),
+                  Expanded(
+                    flex: 3,
+                    child: ClayButton(
+                      height: r.h(48),
+                      onPressed: _saving ? null : _publishResults,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_saving)
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          else ...[
+                            Icon(Icons.emoji_events_rounded, size: r.icon(16), color: Colors.white),
+                            SizedBox(width: r.w(6)),
                           ],
-                        ),
+                          Text(
+                            _saving ? 'Publishing...' : 'Publish Results',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.bold,
+                              fontSize: r.sp(13),
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
     );

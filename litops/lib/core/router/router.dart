@@ -173,6 +173,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
       GoRoute(
+        path: '/results/score/:eventId',
+        builder: (context, state) => ScoreEntryScreen(
+          eventId: state.pathParameters['eventId']!,
+        ),
+      ),
+      GoRoute(
         path: '/verify/:qrCode',
         builder: (context, state) => VerifyCertificateScreen(
           qrCode: state.pathParameters['qrCode']!,
@@ -288,14 +294,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/results',
             builder: (context, state) => const ResultsScreen(),
-            routes: [
-              GoRoute(
-                path: 'score/:eventId',
-                builder: (context, state) => ScoreEntryScreen(
-                  eventId: state.pathParameters['eventId']!,
-                ),
-              ),
-            ],
           ),
           GoRoute(
             path: '/rounds/:eventId',
