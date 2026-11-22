@@ -8,6 +8,7 @@ import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/utils/app_utils.dart';
+import '../../../core/services/notification_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../admin/providers/admin_providers.dart';
 import '../../events/screens/event_detail_screen.dart';
@@ -692,6 +693,39 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
       ref.invalidate(publishedEventsProvider);
       ref.invalidate(eventResultsProvider(widget.eventId));
       ref.invalidate(eventResultsWithDetailsProvider(widget.eventId));
+
+      // 5. Send notifications to ALL 3rd and 4th year members (ONLY 3rd & 4th year members)
+      final eventTitle = _event?.name ?? 'Event';
+      final winnersSummary = <String>[];
+      for (final entry in _positionEntries) {
+        CandidateItem? cand;
+        for (final c in _candidates) {
+          if (c.registrationId == entry.selectedRegistrationId) {
+            cand = c;
+            break;
+          }
+        }
+        if (cand != null) {
+          final branchStr = (cand.branch != null && cand.branch!.isNotEmpty)
+              ? ' (${cand.branch})'
+              : '';
+          winnersSummary.add('${entry.positionName}: ${cand.title}$branchStr');
+        }
+      }
+      final summary = winnersSummary.isNotEmpty
+          ? winnersSummary.take(3).join('\n')
+          : null;
+
+      try {
+        await NotificationService().notifySeniorMembersOnResultsPublished(
+          eventId: widget.eventId,
+          eventName: eventTitle,
+          publisherUserId: profile?.id,
+          summaryText: summary,
+        );
+      } catch (notifErr) {
+        debugPrint('⚠️ Error sending results published notification: $notifErr');
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

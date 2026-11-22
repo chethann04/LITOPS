@@ -5,6 +5,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import '../../core/supabase/supabase_config.dart';
 import '../../core/supabase/supabase_tables.dart';
+import '../enums/enums.dart';
+import '../utils/app_utils.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -238,5 +240,122 @@ class NotificationService {
       notificationDetails: platformChannelSpecifics,
       payload: payload,
     );
+  }
+
+  /// Sends notifications to all 3rd and 4th year members (and ONLY 3rd and 4th year members)
+  /// when event results are published.
+  Future<int> notifySeniorMembersOnResultsPublished({
+    required String eventId,
+    required String eventName,
+    String? publisherUserId,
+    String? summaryText,
+  }) async {
+    try {
+      debugPrint('NotificationService: Fetching 3rd & 4th year members for event "$eventName"...');
+      final profilesRes = await SupabaseConfig.client
+          .from(SupabaseTables.profiles)
+          .select('id, full_name, role, year, academic_year, usn, is_active, account_status, profile_status');
+
+      final eligibleUserIds = <String>{};
+
+      for (final p in profilesRes as List) {
+        final id = p['id'] as String?;
+        if (id == null) continue;
+
+        final isActive = (p['is_active'] as bool?) ?? true;
+        final accountStatus = p['account_status'] as String? ?? 'active';
+        final profileStatus = p['profile_status'] as String? ?? 'approved';
+        if (!isActive || accountStatus == 'disabled' || profileStatus == 'rejected') {
+          continue;
+        }
+
+        // Determine study year (1–4)
+        int? studyYear = p['year'] as int? ?? p['academic_year'] as int?;
+        if (studyYear == null) {
+          final usn = p['usn'] as String?;
+          if (usn != null && usn.trim().isNotEmpty) {
+            studyYear = AppUtils.inferCurrentStudyYearFromUsn(usn);
+          }
+        }
+
+        // STRICT EXCLUSION: Never send to 1st or 2nd year members
+        if (studyYear == 1 || studyYear == 2) {
+          continue;
+        }
+
+        // STRICT MATCH: Only 3rd and 4th year members
+        if (studyYear == 3 || studyYear == 4) {
+          eligibleUserIds.add(id);
+          continue;
+        }
+
+        // Fallback for unpopulated year: check role
+        final roleStr = p['role'] as String? ?? '';
+        if (roleStr == 'junior_wing' || roleStr == 'assistant_coordinator') {
+          // Junior Wing = Year 1, Assistant Coordinator = Year 2 -> EXCLUDE
+          continue;
+        }
+
+        // Core heads / coordinators / directors are 3rd & 4th years
+        final isSeniorRole = UserRole.values.any((r) =>
+            r.value == roleStr &&
+            r != UserRole.juniorWing &&
+            r != UserRole.assistantCoordinator);
+
+        if (isSeniorRole) {
+          eligibleUserIds.add(id);
+        }
+      }
+
+      if (eligibleUserIds.isEmpty) {
+        debugPrint('NotificationService: No eligible 3rd/4th year members found.');
+        return 0;
+      }
+
+      // Check existing notifications to prevent duplicates
+      final existingNotifs = await SupabaseConfig.client
+          .from(SupabaseTables.notifications)
+          .select('user_id')
+          .eq('event_id', eventId)
+          .eq('type', 'results_published');
+
+      final alreadyNotified = (existingNotifs as List)
+          .map((n) => n['user_id'] as String?)
+          .whereType<String>()
+          .toSet();
+
+      final pendingUserIds = eligibleUserIds.difference(alreadyNotified);
+      if (pendingUserIds.isEmpty) {
+        debugPrint('NotificationService: All eligible senior members already notified.');
+        return 0;
+      }
+
+      final title = '🏆 Results Published: $eventName';
+      String body = 'Results for "$eventName" have been published.';
+      if (summaryText != null && summaryText.trim().isNotEmpty) {
+        body += '\n${summaryText.trim()}';
+      }
+      body += '\nCheck the leaderboard for updated branch standings!';
+
+      final notificationRows = pendingUserIds.map((userId) => {
+        'user_id': userId,
+        'sender_user_id': publisherUserId,
+        'title': title,
+        'message': body,
+        'type': 'results_published',
+        'is_read': false,
+        'event_id': eventId,
+      }).toList();
+
+      await SupabaseConfig.client
+          .from(SupabaseTables.notifications)
+          .insert(notificationRows);
+
+      debugPrint('NotificationService: Successfully dispatched results_published notifications to ${notificationRows.length} 3rd and 4th year members.');
+      return notificationRows.length;
+    } catch (e) {
+      debugPrint('NotificationService: Error notifying senior members on results published: $e');
+      return 0;
+    }
   }
 }
