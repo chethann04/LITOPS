@@ -310,14 +310,17 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                                           ),
                                           SizedBox(height: context.r.h(16)),
                                           ...EventStatus.values.map((status) {
-                                            return ListTile(
-                                              title: Text(status.label),
-                                              leading: currentStatus == status
-                                                  ? const Icon(Icons.check_circle, color: LitColors.moss)
-                                                  : null,
-                                              onTap: () {
-                                                Navigator.pop(ctx, status);
-                                              },
+                                            return Material(
+                                              color: Colors.transparent,
+                                              child: ListTile(
+                                                title: Text(status.label),
+                                                leading: currentStatus == status
+                                                    ? const Icon(Icons.check_circle, color: LitColors.moss)
+                                                    : null,
+                                                onTap: () {
+                                                  Navigator.pop(ctx, status);
+                                                },
+                                              ),
                                             );
                                           }),
                                         ],

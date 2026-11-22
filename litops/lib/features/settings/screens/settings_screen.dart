@@ -408,13 +408,13 @@ class _NotificationsSheetState extends State<_NotificationsSheet> {
   @override
   Widget build(BuildContext context) {
     final r = context.r;
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: LitColors.clay,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
+    return Material(
+      color: LitColors.clay,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.85,
+        child: Column(
         children: [
           SizedBox(height: r.h(12)),
           Container(
@@ -569,6 +569,7 @@ class _NotificationsSheetState extends State<_NotificationsSheet> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

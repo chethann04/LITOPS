@@ -297,19 +297,21 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             final r = Responsive(context);
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.75,
-              padding: EdgeInsets.fromLTRB(
-                  r.w(16), r.h(16), r.w(16), r.h(16) + r.bottomSafeArea),
-              decoration: BoxDecoration(
-                color: const Color(0xFF161312),
-                borderRadius:
-                    BorderRadius.vertical(top: Radius.circular(r.radius(24))),
-                border: const Border(
-                  top: BorderSide(color: Color(0xFF2B2624), width: 1.5),
+            return Material(
+              color: const Color(0xFF161312),
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(r.radius(24))),
+              clipBehavior: Clip.antiAlias,
+              child: Container(
+                height: MediaQuery.of(context).size.height * 0.75,
+                padding: EdgeInsets.fromLTRB(
+                    r.w(16), r.h(16), r.w(16), r.h(16) + r.bottomSafeArea),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: Color(0xFF2B2624), width: 1.5),
+                  ),
                 ),
-              ),
-              child: Column(
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
@@ -407,7 +409,9 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                                         candidate.registrationId,
                               );
 
-                              return ListTile(
+                              return Material(
+                                color: Colors.transparent,
+                                child: ListTile(
                                 dense: true,
                                 contentPadding: EdgeInsets.symmetric(
                                     horizontal: r.w(8), vertical: r.h(2)),
@@ -487,13 +491,15 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                                   });
                                   Navigator.pop(ctx);
                                 },
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            );
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
           },
         );
       },

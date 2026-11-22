@@ -641,20 +641,25 @@ class ProfileScreen extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: LitColors.bone),
-              title: Text('Choose from Gallery', style: GoogleFonts.plusJakartaSans(color: LitColors.bone)),
-              onTap: () => Navigator.pop(context, ImageSource.gallery),
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: LitColors.bone),
-              title: Text('Take Photo', style: GoogleFonts.plusJakartaSans(color: LitColors.bone)),
-              onTap: () => Navigator.pop(context, ImageSource.camera),
-            ),
-          ],
+      builder: (context) => Material(
+        color: LitColors.clay,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        clipBehavior: Clip.antiAlias,
+        child: SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: LitColors.bone),
+                title: Text('Choose from Gallery', style: GoogleFonts.plusJakartaSans(color: LitColors.bone)),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: LitColors.bone),
+                title: Text('Take Photo', style: GoogleFonts.plusJakartaSans(color: LitColors.bone)),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -162,7 +162,10 @@ class ClayCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: br,
-        child: content,
+        child: Material(
+          color: Colors.transparent,
+          child: content,
+        ),
       ),
     );
   }
@@ -227,7 +230,10 @@ class ClayInsetCard extends StatelessWidget {
               ),
             ],
           ),
-          child: content,
+          child: Material(
+            color: Colors.transparent,
+            child: content,
+          ),
         ),
       ),
     );

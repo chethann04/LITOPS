@@ -319,20 +319,25 @@ class _MemberManagementScreenState extends ConsumerState<MemberManagementScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFFF3ECE2)),
-              title: const Text('Choose from Gallery', style: TextStyle(color: Color(0xFFF3ECE2))),
-              onTap: () => Navigator.pop(context, ImageSource.gallery),
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFFF3ECE2)),
-              title: const Text('Take Photo', style: TextStyle(color: Color(0xFFF3ECE2))),
-              onTap: () => Navigator.pop(context, ImageSource.camera),
-            ),
-          ],
+      builder: (context) => Material(
+        color: const Color(0xFF1D1A18),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        clipBehavior: Clip.antiAlias,
+        child: SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Color(0xFFF3ECE2)),
+                title: const Text('Choose from Gallery', style: TextStyle(color: Color(0xFFF3ECE2))),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Color(0xFFF3ECE2)),
+                title: const Text('Take Photo', style: TextStyle(color: Color(0xFFF3ECE2))),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+            ],
+          ),
         ),
       ),
     );

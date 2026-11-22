@@ -1697,13 +1697,16 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
   }
 
   Widget _buildSuggestionsList() {
-    return Container(
-      decoration: BoxDecoration(
-        color: LitColors.clay2,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: LitColors.clay3),
-      ),
-      child: ListView.separated(
+    return Material(
+      color: LitColors.clay2,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: LitColors.clay3),
+        ),
+        child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.all(8),
@@ -1749,8 +1752,9 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
           );
         },
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildStudentDetailsCard() {
     final student = _selectedStudentFromSearch!;
