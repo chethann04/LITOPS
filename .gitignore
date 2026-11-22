@@ -1,0 +1,27 @@
+# IDE / Editor files
+.idea/caches/
+.idea/workspace.xml
+.idea/shelf/
+*.iml
+
+# Operating System files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# General build artifacts and caches
+**/build/
+**/.gradle/
+**/local.properties
+**/GeneratedPluginRegistrant.*
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+
+# Node / Next.js
+**/node_modules/
+**/.next/
+**/.vercel/
