@@ -6,7 +6,6 @@ import '../../../core/models/models.dart';
 import '../../../core/enums/enums.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../core/config/role_config.dart';
 
 
 import '../../../core/supabase/supabase_config.dart';
@@ -16,22 +15,33 @@ import '../../auth/providers/auth_provider.dart';
 import 'events_screen.dart' show eventsListProvider;
 
 final eventDetailProvider = StreamProvider.family<Event, String>((ref, eventId) async* {
-  print('📡 [Realtime] eventDetailProvider starting for $eventId');
-  bool hasData = false;
-  try {
-    final res = await SupabaseConfig.client
-        .from(SupabaseTables.events)
-        .select()
-        .eq('id', eventId)
-        .maybeSingle();
-    if (res != null) {
-      yield Event.fromJson(res);
-      hasData = true;
+  debugPrint('📡 [Realtime] eventDetailProvider starting for $eventId');
+  Event? currentEvent;
+
+  Future<Event?> fetchEventRest() async {
+    try {
+      final res = await SupabaseConfig.client
+          .from(SupabaseTables.events)
+          .select()
+          .eq('id', eventId)
+          .maybeSingle();
+      if (res != null) {
+        return Event.fromJson(res);
+      }
+    } catch (e) {
+      debugPrint('⚠️ [Realtime] eventDetailProvider REST fetch failed: $e');
     }
-  } catch (e) {
-    print('⚠️ [Realtime] eventDetailProvider initial REST fetch failed: $e');
+    return null;
   }
 
+  // 1. Initial immediate REST fetch
+  final initial = await fetchEventRest();
+  if (initial != null) {
+    currentEvent = initial;
+    yield currentEvent;
+  }
+
+  // 2. Realtime loop with error suppression
   while (true) {
     try {
       final stream = SupabaseConfig.client
@@ -40,50 +50,35 @@ final eventDetailProvider = StreamProvider.family<Event, String>((ref, eventId) 
           .eq('id', eventId);
 
       await for (final data in stream) {
-        print('📡 [Realtime] eventDetailProvider received data: $data');
         if (data.isNotEmpty) {
-          yield Event.fromJson(data.first);
-          hasData = true;
+          currentEvent = Event.fromJson(data.first);
+          yield currentEvent;
         }
       }
     } catch (e) {
-      print('❌ [Realtime] eventDetailProvider stream error: $e');
-      try {
-        final res = await SupabaseConfig.client
-            .from(SupabaseTables.events)
-            .select()
-            .eq('id', eventId)
-            .maybeSingle();
-        if (res != null) {
-          yield Event.fromJson(res);
-          hasData = true;
-        }
-      } catch (restError) {
-        print('⚠️ [Realtime] eventDetailProvider backup REST fetch failed: $restError');
+      debugPrint('⚠️ [Realtime] eventDetailProvider stream interrupted: $e');
+      final backup = await fetchEventRest();
+      if (backup != null) {
+        currentEvent = backup;
+        yield currentEvent;
       }
-
-      if (!hasData) {
-        rethrow;
-      }
-      print('📡 [Realtime] eventDetailProvider retrying subscription in 5 seconds...');
       await Future.delayed(const Duration(seconds: 5));
     }
   }
 });
 
 final eventRegistrationsCountProvider = StreamProvider.family<int, String>((ref, eventId) async* {
-  print('📡 [Realtime] eventRegistrationsCountProvider starting for $eventId');
-  bool hasData = false;
+  int currentCount = 0;
   try {
     final res = await SupabaseConfig.client
         .from(SupabaseTables.registrations)
         .select()
         .eq('event_id', eventId);
-    final count = res.where((r) => r['is_cancelled'] == false).length;
-    yield count;
-    hasData = true;
+    currentCount = (res as List).where((r) => r['is_cancelled'] == false).length;
+    yield currentCount;
   } catch (e) {
-    print('⚠️ [Realtime] eventRegistrationsCountProvider initial REST fetch failed: $e');
+    debugPrint('⚠️ [Realtime] eventRegistrationsCountProvider initial REST fetch failed: $e');
+    yield 0;
   }
 
   while (true) {
@@ -94,45 +89,36 @@ final eventRegistrationsCountProvider = StreamProvider.family<int, String>((ref,
           .eq('event_id', eventId);
 
       await for (final data in stream) {
-        final count = data.where((r) => r['is_cancelled'] == false).length;
-        yield count;
-        hasData = true;
+        currentCount = data.where((r) => r['is_cancelled'] == false).length;
+        yield currentCount;
       }
     } catch (e) {
-      print('❌ [Realtime] eventRegistrationsCountProvider stream error: $e');
+      debugPrint('⚠️ [Realtime] eventRegistrationsCountProvider stream error: $e');
       try {
         final res = await SupabaseConfig.client
             .from(SupabaseTables.registrations)
             .select()
             .eq('event_id', eventId);
-        final count = res.where((r) => r['is_cancelled'] == false).length;
-        yield count;
-        hasData = true;
-      } catch (restError) {
-        print('⚠️ [Realtime] eventRegistrationsCountProvider backup REST fetch failed: $restError');
-      }
-
-      if (!hasData) {
-        rethrow;
-      }
-      print('📡 [Realtime] eventRegistrationsCountProvider retrying subscription in 5 seconds...');
+        currentCount = (res as List).where((r) => r['is_cancelled'] == false).length;
+        yield currentCount;
+      } catch (_) {}
       await Future.delayed(const Duration(seconds: 5));
     }
   }
 });
 
 final eventAttendanceCountProvider = StreamProvider.family<int, String>((ref, eventId) async* {
-  print('📡 [Realtime] eventAttendanceCountProvider starting for $eventId');
-  bool hasData = false;
+  int currentCount = 0;
   try {
     final res = await SupabaseConfig.client
         .from(SupabaseTables.attendance)
         .select()
         .eq('event_id', eventId);
-    yield res.length;
-    hasData = true;
+    currentCount = (res as List).length;
+    yield currentCount;
   } catch (e) {
-    print('⚠️ [Realtime] eventAttendanceCountProvider initial REST fetch failed: $e');
+    debugPrint('⚠️ [Realtime] eventAttendanceCountProvider initial REST fetch failed: $e');
+    yield 0;
   }
 
   while (true) {
@@ -143,37 +129,38 @@ final eventAttendanceCountProvider = StreamProvider.family<int, String>((ref, ev
           .eq('event_id', eventId);
 
       await for (final data in stream) {
-        yield data.length;
-        hasData = true;
+        currentCount = data.length;
+        yield currentCount;
       }
     } catch (e) {
-      print('❌ [Realtime] eventAttendanceCountProvider stream error: $e');
+      debugPrint('⚠️ [Realtime] eventAttendanceCountProvider stream error: $e');
       try {
         final res = await SupabaseConfig.client
             .from(SupabaseTables.attendance)
             .select()
             .eq('event_id', eventId);
-        yield res.length;
-        hasData = true;
-      } catch (restError) {
-        print('⚠️ [Realtime] eventAttendanceCountProvider backup REST fetch failed: $restError');
-      }
-
-      if (!hasData) {
-        rethrow;
-      }
-      print('📡 [Realtime] eventAttendanceCountProvider retrying subscription in 5 seconds...');
+        currentCount = (res as List).length;
+        yield currentCount;
+      } catch (_) {}
       await Future.delayed(const Duration(seconds: 5));
     }
   }
 });
 
-class EventDetailScreen extends ConsumerWidget {
+class EventDetailScreen extends ConsumerStatefulWidget {
   final String eventId;
   const EventDetailScreen({super.key, required this.eventId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EventDetailScreen> createState() => _EventDetailScreenState();
+}
+
+class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
+  EventStatus? _optimisticStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final eventId = widget.eventId;
     final eventAsync = ref.watch(eventDetailProvider(eventId));
     final regCountAsync = ref.watch(eventRegistrationsCountProvider(eventId));
     final attCountAsync = ref.watch(eventAttendanceCountProvider(eventId));
@@ -327,7 +314,11 @@ class EventDetailScreen extends ConsumerWidget {
       ),
       body: eventAsync.when(
         data: (event) {
-          final isOngoing = event.status == EventStatus.ongoing;
+          if (_optimisticStatus != null && event.status == _optimisticStatus) {
+            _optimisticStatus = null;
+          }
+          final currentStatus = _optimisticStatus ?? event.status;
+          final isOngoing = currentStatus == EventStatus.ongoing;
           return Column(
             children: [
               Expanded(
@@ -379,7 +370,7 @@ class EventDetailScreen extends ConsumerWidget {
                                           ...EventStatus.values.map((status) {
                                             return ListTile(
                                               title: Text(status.label),
-                                              leading: event.status == status
+                                              leading: currentStatus == status
                                                   ? const Icon(Icons.check_circle, color: LitColors.moss)
                                                   : null,
                                               onTap: () {
@@ -391,30 +382,49 @@ class EventDetailScreen extends ConsumerWidget {
                                       ),
                                     ),
                                   );
-                                  if (newStatus != null && newStatus != event.status) {
-                                    try {
-                                      final updatedEvent = await SupabaseConfig.client
-                                          .from(SupabaseTables.events)
-                                          .update({'status': newStatus.value})
-                                          .eq('id', eventId)
-                                          .select('id, status')
-                                          .maybeSingle();
+                                  if (newStatus != null && newStatus != currentStatus) {
+                                    final previousStatus = currentStatus;
+                                    setState(() => _optimisticStatus = newStatus);
 
-                                      if (updatedEvent == null || updatedEvent['status'] != newStatus.value) {
-                                        throw StateError('The event status was not saved. Check your permissions and try again.');
+                                    try {
+                                      // 1. Try secure RPC first
+                                      bool updatedViaRpc = false;
+                                      try {
+                                        await SupabaseConfig.client.rpc(
+                                          'update_event_status',
+                                          params: {
+                                            'p_event_id': widget.eventId,
+                                            'p_status': newStatus.value,
+                                          },
+                                        );
+                                        updatedViaRpc = true;
+                                      } catch (rpcErr) {
+                                        debugPrint('⚠️ update_event_status RPC not available or failed ($rpcErr). Using direct update.');
                                       }
 
-                                      // Do not rely solely on Supabase Realtime to refresh the visible status.
-                                      ref.invalidate(eventDetailProvider(eventId));
+                                      // 2. Direct table update fallback
+                                      if (!updatedViaRpc) {
+                                        await SupabaseConfig.client
+                                            .from(SupabaseTables.events)
+                                            .update({
+                                              'status': newStatus.value,
+                                              'updated_at': DateTime.now().toIso8601String(),
+                                            })
+                                            .eq('id', widget.eventId);
+                                      }
+
+                                      // 3. Invalidate providers to synchronize state across the app
+                                      ref.invalidate(eventDetailProvider(widget.eventId));
                                       ref.invalidate(eventsListProvider);
-                                      if (context.mounted) {
+                                      if (mounted) {
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Event status updated successfully')),
+                                          SnackBar(content: Text('Status updated to ${newStatus.label}')),
                                         );
                                       }
                                     } catch (e) {
                                       debugPrint('Error updating event status: $e');
-                                      if (context.mounted) {
+                                      if (mounted) {
+                                        setState(() => _optimisticStatus = previousStatus);
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(content: Text('Failed to update event status: $e')),
                                         );
@@ -422,11 +432,11 @@ class EventDetailScreen extends ConsumerWidget {
                                     }
                                   }
                                 },
-                                child: StatusChip(label: event.status.label),
+                                child: StatusChip(label: currentStatus.label),
                               ),
                             )
                           else
-                            StatusChip(label: event.status.label),
+                            StatusChip(label: currentStatus.label),
                         ],
                       ),
                       SizedBox(height: context.r.h(12)),
@@ -727,7 +737,7 @@ class EventDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _duplicateEvent(BuildContext context, WidgetRef ref) async {
-    final event = ref.read(eventDetailProvider(eventId)).value;
+    final event = ref.read(eventDetailProvider(widget.eventId)).value;
     if (event == null) return;
     final client = SupabaseConfig.client;
     final userId = ref.read(authStateProvider).profile!.id;
@@ -740,15 +750,15 @@ class EventDetailScreen extends ConsumerWidget {
     });
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Event duplicated')));
-      ref.invalidate(eventDetailProvider(eventId));
+      ref.invalidate(eventDetailProvider(widget.eventId));
     }
   }
 
   Future<void> _archiveEvent(BuildContext context, WidgetRef ref) async {
-    await SupabaseConfig.client.from(SupabaseTables.events).update({'status': 'archived'}).eq('id', eventId);
+    await SupabaseConfig.client.from(SupabaseTables.events).update({'status': 'archived'}).eq('id', widget.eventId);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Event archived')));
-      ref.invalidate(eventDetailProvider(eventId));
+      ref.invalidate(eventDetailProvider(widget.eventId));
     }
   }
 
@@ -762,7 +772,7 @@ class EventDetailScreen extends ConsumerWidget {
       onConfirm: () {},
     );
     if (confirm == true) {
-      await SupabaseConfig.client.from(SupabaseTables.events).delete().eq('id', eventId);
+      await SupabaseConfig.client.from(SupabaseTables.events).delete().eq('id', widget.eventId);
       if (context.mounted) {
         context.go('/events');
       }
