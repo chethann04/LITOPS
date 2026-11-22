@@ -544,14 +544,14 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                             context,
                             'VENUE',
                             event.venue ?? 'TBD',
-                            onEdit: canEdit ? () => _showEditVenueSheet(context, event) : null,
+                            onEdit: canEdit ? () => _showEditVenueDialog(context, event) : null,
                             editIcon: Icons.edit_location_alt_rounded,
                           ),
                           _buildDetailStat(
                             context,
                             'DATE',
                             event.eventDate != null ? AppUtils.formatDate(event.eventDate!) : 'TBD',
-                            onEdit: canEdit ? () => _showEditDateSheet(context, event) : null,
+                            onEdit: canEdit ? () => _showEditDateDialog(context, event) : null,
                             editIcon: Icons.edit_calendar_rounded,
                           ),
                           _buildDetailStat(context, 'REGISTRATIONS', '${regCountAsync.value ?? 0}'),
@@ -733,7 +733,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     return content;
   }
 
-  Future<void> _showEditVenueSheet(BuildContext context, Event event) async {
+  Future<void> _showEditVenueDialog(BuildContext context, Event event) async {
     final r = Responsive(context);
     final controller = TextEditingController(text: event.venue ?? '');
     final commonVenues = [
@@ -747,78 +747,65 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       'Library Hall',
     ];
 
-    await showModalBottomSheet(
+    await showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      useRootNavigator: true,
       builder: (ctx) {
         bool saving = false;
         return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            return Material(
-              color: const Color(0xFF161312),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(r.radius(24))),
-              clipBehavior: Clip.antiAlias,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  r.w(20),
-                  r.h(16),
-                  r.w(20),
-                  r.h(20) + MediaQuery.of(ctx).viewInsets.bottom + r.bottomSafeArea,
-                ),
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF191614),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(r.radius(20)),
+                side: const BorderSide(color: Color(0xFF2C2623), width: 1.2),
+              ),
+              titlePadding: EdgeInsets.fromLTRB(r.w(20), r.h(20), r.w(20), r.h(10)),
+              contentPadding: EdgeInsets.symmetric(horizontal: r.w(20)),
+              actionsPadding: EdgeInsets.fromLTRB(r.w(16), r.h(12), r.w(16), r.h(16)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(r.w(8)),
+                    decoration: BoxDecoration(
+                      color: LitColors.ember.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(r.radius(10)),
+                    ),
+                    child: Icon(Icons.location_on_rounded, color: LitColors.ember, size: r.icon(20)),
+                  ),
+                  SizedBox(width: r.w(12)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Edit Venue',
+                          style: GoogleFonts.fredoka(
+                            fontSize: r.sp(16),
+                            fontWeight: FontWeight.bold,
+                            color: LitColors.bone,
+                          ),
+                        ),
+                        Text(
+                          event.name,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: r.sp(11.5),
+                            color: LitColors.ash,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(
-                      child: Container(
-                        width: r.w(40),
-                        height: r.h(4),
-                        margin: EdgeInsets.only(bottom: r.h(16)),
-                        decoration: BoxDecoration(
-                          color: LitColors.ash.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(r.radius(2)),
-                        ),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(r.w(8)),
-                          decoration: BoxDecoration(
-                            color: LitColors.ember.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(r.radius(10)),
-                          ),
-                          child: Icon(Icons.location_on_rounded, color: LitColors.ember, size: r.icon(20)),
-                        ),
-                        SizedBox(width: r.w(12)),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Edit Venue',
-                                style: GoogleFonts.fredoka(
-                                  fontSize: r.sp(16),
-                                  fontWeight: FontWeight.bold,
-                                  color: LitColors.bone,
-                                ),
-                              ),
-                              Text(
-                                event.name,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: r.sp(11.5),
-                                  color: LitColors.ash,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: r.h(18)),
+                    SizedBox(height: r.h(8)),
                     Text(
                       'VENUE LOCATION',
                       style: GoogleFonts.plusJakartaSans(
@@ -831,20 +818,19 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                     SizedBox(height: r.h(8)),
                     TextField(
                       controller: controller,
-                      autofocus: true,
-                      style: GoogleFonts.plusJakartaSans(color: LitColors.bone, fontSize: r.sp(14)),
+                      style: GoogleFonts.plusJakartaSans(color: LitColors.bone, fontSize: r.sp(13.5)),
                       decoration: InputDecoration(
                         hintText: 'Enter venue (e.g. Auditorium, OAT)',
                         hintStyle: TextStyle(color: LitColors.ash.withValues(alpha: 0.5)),
                         filled: true,
                         fillColor: LitColors.clay2,
-                        prefixIcon: const Icon(Icons.place_outlined, color: LitColors.ember),
+                        prefixIcon: const Icon(Icons.place_outlined, color: LitColors.ember, size: 20),
                         suffixIcon: controller.text.isNotEmpty
                             ? IconButton(
                                 icon: const Icon(Icons.clear, color: LitColors.ash, size: 18),
                                 onPressed: () {
                                   controller.clear();
-                                  setSheetState(() {});
+                                  setDialogState(() {});
                                 },
                               )
                             : null,
@@ -854,14 +840,14 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(r.radius(12)),
-                          borderSide: BorderSide(color: LitColors.clay3),
+                          borderSide: const BorderSide(color: LitColors.clay3),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(r.radius(12)),
                           borderSide: const BorderSide(color: LitColors.ember, width: 1.5),
                         ),
                       ),
-                      onChanged: (_) => setSheetState(() {}),
+                      onChanged: (_) => setDialogState(() {}),
                     ),
                     SizedBox(height: r.h(12)),
                     Text(
@@ -872,112 +858,108 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                       ),
                     ),
                     SizedBox(height: r.h(8)),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: commonVenues.map((v) {
-                          final isSelected = controller.text.trim() == v;
-                          return Padding(
-                            padding: EdgeInsets.only(right: r.w(8)),
-                            child: ActionChip(
-                              label: Text(v),
-                              labelStyle: GoogleFonts.plusJakartaSans(
-                                fontSize: r.sp(11),
-                                color: isSelected ? Colors.white : LitColors.bone,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                              ),
-                              backgroundColor: isSelected ? LitColors.ember : LitColors.clay2,
-                              side: BorderSide(color: isSelected ? LitColors.ember : LitColors.clay3),
-                              onPressed: () {
-                                controller.text = v;
-                                setSheetState(() {});
-                              },
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                    SizedBox(height: r.h(20)),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ClayButton(
-                            isPrimary: false,
-                            onPressed: () => Navigator.pop(ctx),
-                            child: Text(
-                              'Cancel',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: LitColors.ash,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                    Wrap(
+                      spacing: r.w(6),
+                      runSpacing: r.h(6),
+                      children: commonVenues.map((v) {
+                        final isSelected = controller.text.trim() == v;
+                        return ChoiceChip(
+                          label: Text(v),
+                          labelStyle: GoogleFonts.plusJakartaSans(
+                            fontSize: r.sp(10.5),
+                            color: isSelected ? Colors.white : LitColors.bone,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                           ),
-                        ),
-                        SizedBox(width: r.w(12)),
-                        Expanded(
-                          flex: 2,
-                          child: ClayButton(
-                            isPrimary: true,
-                            onPressed: saving
-                                ? null
-                                : () async {
-                                    final newVenue = controller.text.trim();
-                                    setSheetState(() => saving = true);
-                                    try {
-                                      await SupabaseConfig.client
-                                          .from(SupabaseTables.events)
-                                          .update({
-                                            'venue': newVenue.isEmpty ? null : newVenue,
-                                            'updated_at': DateTime.now().toIso8601String(),
-                                          })
-                                          .eq('id', event.id);
-
-                                      ref.invalidate(eventDetailProvider(event.id));
-                                      ref.invalidate(eventsListProvider);
-
-                                      if (ctx.mounted) {
-                                        Navigator.pop(ctx);
-                                      }
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('📍 Venue updated to "${newVenue.isEmpty ? "TBD" : newVenue}"'),
-                                            backgroundColor: LitColors.moss,
-                                          ),
-                                        );
-                                      }
-                                    } catch (err) {
-                                      setSheetState(() => saving = false);
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Failed to update venue: $err'),
-                                            backgroundColor: Colors.redAccent,
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  },
-                            child: saving
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                  )
-                                : Text(
-                                    'Save Venue',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ],
+                          selected: isSelected,
+                          selectedColor: LitColors.ember,
+                          backgroundColor: LitColors.clay2,
+                          side: BorderSide(color: isSelected ? LitColors.ember : LitColors.clay3),
+                          onSelected: (selected) {
+                            controller.text = selected ? v : '';
+                            setDialogState(() {});
+                          },
+                        );
+                      }).toList(),
                     ),
                   ],
                 ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: saving ? null : () => Navigator.pop(ctx),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: LitColors.ash,
+                      fontWeight: FontWeight.w600,
+                      fontSize: r.sp(13),
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          final newVenue = controller.text.trim();
+                          setDialogState(() => saving = true);
+                          try {
+                            await SupabaseConfig.client
+                                .from(SupabaseTables.events)
+                                .update({
+                                  'venue': newVenue.isEmpty ? null : newVenue,
+                                  'updated_at': DateTime.now().toIso8601String(),
+                                })
+                                .eq('id', event.id);
+
+                            ref.invalidate(eventDetailProvider(event.id));
+                            ref.invalidate(eventsListProvider);
+
+                            if (ctx.mounted) {
+                              Navigator.pop(ctx);
+                            }
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('📍 Venue updated to "${newVenue.isEmpty ? "TBD" : newVenue}"'),
+                                  backgroundColor: LitColors.moss,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          } catch (err) {
+                            setDialogState(() => saving = false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to update venue: $err'),
+                                  backgroundColor: Colors.redAccent,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: LitColors.ember,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: EdgeInsets.symmetric(horizontal: r.w(16), vertical: r.h(10)),
+                  ),
+                  child: saving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          'Save Venue',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: r.sp(13),
+                          ),
+                        ),
+                ),
+              ],
             );
           },
         );
@@ -985,7 +967,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     );
   }
 
-  Future<void> _showEditDateSheet(BuildContext context, Event event) async {
+  Future<void> _showEditDateDialog(BuildContext context, Event event) async {
     final r = Responsive(context);
     DateTime selectedDate = event.eventDate ?? DateTime.now();
     TimeOfDay? selectedTime;
@@ -996,79 +978,65 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       } catch (_) {}
     }
 
-    await showModalBottomSheet(
+    await showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      useRootNavigator: true,
       builder: (ctx) {
         bool saving = false;
         return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            return Material(
-              color: const Color(0xFF161312),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(r.radius(24))),
-              clipBehavior: Clip.antiAlias,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  r.w(20),
-                  r.h(16),
-                  r.w(20),
-                  r.h(20) + r.bottomSafeArea,
-                ),
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF191614),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(r.radius(20)),
+                side: const BorderSide(color: Color(0xFF2C2623), width: 1.2),
+              ),
+              titlePadding: EdgeInsets.fromLTRB(r.w(20), r.h(20), r.w(20), r.h(10)),
+              contentPadding: EdgeInsets.symmetric(horizontal: r.w(20)),
+              actionsPadding: EdgeInsets.fromLTRB(r.w(16), r.h(12), r.w(16), r.h(16)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(r.w(8)),
+                    decoration: BoxDecoration(
+                      color: LitColors.amber.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(r.radius(10)),
+                    ),
+                    child: Icon(Icons.calendar_month_rounded, color: LitColors.amber, size: r.icon(20)),
+                  ),
+                  SizedBox(width: r.w(12)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Edit Date & Time',
+                          style: GoogleFonts.fredoka(
+                            fontSize: r.sp(16),
+                            fontWeight: FontWeight.bold,
+                            color: LitColors.bone,
+                          ),
+                        ),
+                        Text(
+                          event.name,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: r.sp(11.5),
+                            color: LitColors.ash,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(
-                      child: Container(
-                        width: r.w(40),
-                        height: r.h(4),
-                        margin: EdgeInsets.only(bottom: r.h(16)),
-                        decoration: BoxDecoration(
-                          color: LitColors.ash.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(r.radius(2)),
-                        ),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(r.w(8)),
-                          decoration: BoxDecoration(
-                            color: LitColors.amber.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(r.radius(10)),
-                          ),
-                          child: Icon(Icons.calendar_month_rounded, color: LitColors.amber, size: r.icon(20)),
-                        ),
-                        SizedBox(width: r.w(12)),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Edit Event Date & Time',
-                                style: GoogleFonts.fredoka(
-                                  fontSize: r.sp(16),
-                                  fontWeight: FontWeight.bold,
-                                  color: LitColors.bone,
-                                ),
-                              ),
-                              Text(
-                                event.name,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: r.sp(11.5),
-                                  color: LitColors.ash,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: r.h(20)),
-                    // Date Card Picker
+                    SizedBox(height: r.h(8)),
                     Text(
                       'EVENT DATE',
                       style: GoogleFonts.plusJakartaSans(
@@ -1082,7 +1050,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                     InkWell(
                       onTap: () async {
                         final picked = await showDatePicker(
-                          context: context,
+                          context: ctx,
+                          useRootNavigator: true,
                           initialDate: selectedDate,
                           firstDate: DateTime(2020),
                           lastDate: DateTime(2035),
@@ -1095,13 +1064,14 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                                   surface: Color(0xFF1F1B19),
                                   onSurface: LitColors.bone,
                                 ),
+                                dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF161312)),
                               ),
                               child: child!,
                             );
                           },
                         );
                         if (picked != null) {
-                          setSheetState(() => selectedDate = picked);
+                          setDialogState(() => selectedDate = picked);
                         }
                       },
                       borderRadius: BorderRadius.circular(r.radius(12)),
@@ -1142,7 +1112,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                       ),
                     ),
                     SizedBox(height: r.h(16)),
-                    // Optional Time Card Picker
                     Text(
                       'EVENT TIME (OPTIONAL)',
                       style: GoogleFonts.plusJakartaSans(
@@ -1156,24 +1125,26 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                     InkWell(
                       onTap: () async {
                         final picked = await showTimePicker(
-                          context: context,
+                          context: ctx,
+                          useRootNavigator: true,
                           initialTime: selectedTime ?? const TimeOfDay(hour: 10, minute: 0),
                           builder: (context, child) {
                             return Theme(
                               data: Theme.of(context).copyWith(
                                 colorScheme: const ColorScheme.dark(
-                                  primary: LitColors.ember,
-                                  onPrimary: Colors.white,
+                                  primary: LitColors.amber,
+                                  onPrimary: Color(0xFF161312),
                                   surface: Color(0xFF1F1B19),
                                   onSurface: LitColors.bone,
                                 ),
+                                dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF161312)),
                               ),
                               child: child!,
                             );
                           },
                         );
                         if (picked != null) {
-                          setSheetState(() => selectedTime = picked);
+                          setDialogState(() => selectedTime = picked);
                         }
                       },
                       borderRadius: BorderRadius.circular(r.radius(12)),
@@ -1189,7 +1160,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.access_time_rounded, color: LitColors.ember, size: 20),
+                                const Icon(Icons.access_time_rounded, color: LitColors.amber, size: 20),
                                 SizedBox(width: r.w(10)),
                                 Text(
                                   selectedTime != null
@@ -1206,7 +1177,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                             Text(
                               selectedTime != null || event.eventTime != null ? 'Change' : 'Set Time',
                               style: GoogleFonts.plusJakartaSans(
-                                color: LitColors.ember,
+                                color: LitColors.amber,
                                 fontSize: r.sp(12),
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1215,92 +1186,90 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: r.h(24)),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ClayButton(
-                            isPrimary: false,
-                            onPressed: () => Navigator.pop(ctx),
-                            child: Text(
-                              'Cancel',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: LitColors.ash,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: r.w(12)),
-                        Expanded(
-                          flex: 2,
-                          child: ClayButton(
-                            isPrimary: true,
-                            onPressed: saving
-                                ? null
-                                : () async {
-                                    setSheetState(() => saving = true);
-                                    try {
-                                      final dateStr = selectedDate.toIso8601String().split('T').first;
-                                      final timeStr = selectedTime != null
-                                          ? '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}'
-                                          : event.eventTime;
-
-                                      await SupabaseConfig.client
-                                          .from(SupabaseTables.events)
-                                          .update({
-                                            'event_date': dateStr,
-                                            'event_time': timeStr,
-                                            'updated_at': DateTime.now().toIso8601String(),
-                                          })
-                                          .eq('id', event.id);
-
-                                      ref.invalidate(eventDetailProvider(event.id));
-                                      ref.invalidate(eventsListProvider);
-
-                                      if (ctx.mounted) {
-                                        Navigator.pop(ctx);
-                                      }
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('📅 Date updated to ${AppUtils.formatDate(selectedDate)}'),
-                                            backgroundColor: LitColors.moss,
-                                          ),
-                                        );
-                                      }
-                                    } catch (err) {
-                                      setSheetState(() => saving = false);
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Failed to update date: $err'),
-                                            backgroundColor: Colors.redAccent,
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  },
-                            child: saving
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                  )
-                                : Text(
-                                    'Save Date & Time',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      color: const Color(0xFF161312),
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: saving ? null : () => Navigator.pop(ctx),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: LitColors.ash,
+                      fontWeight: FontWeight.w600,
+                      fontSize: r.sp(13),
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          setDialogState(() => saving = true);
+                          try {
+                            final dateStr = selectedDate.toIso8601String().split('T').first;
+                            final timeStr = selectedTime != null
+                                ? '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}'
+                                : event.eventTime;
+
+                            await SupabaseConfig.client
+                                .from(SupabaseTables.events)
+                                .update({
+                                  'event_date': dateStr,
+                                  'event_time': timeStr,
+                                  'updated_at': DateTime.now().toIso8601String(),
+                                })
+                                .eq('id', event.id);
+
+                            ref.invalidate(eventDetailProvider(event.id));
+                            ref.invalidate(eventsListProvider);
+
+                            if (ctx.mounted) {
+                              Navigator.pop(ctx);
+                            }
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('📅 Date updated to ${AppUtils.formatDate(selectedDate)}'),
+                                  backgroundColor: LitColors.moss,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          } catch (err) {
+                            setDialogState(() => saving = false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to update date: $err'),
+                                  backgroundColor: Colors.redAccent,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: LitColors.amber,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: EdgeInsets.symmetric(horizontal: r.w(16), vertical: r.h(10)),
+                  ),
+                  child: saving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF161312)),
+                        )
+                      : Text(
+                          'Save Date & Time',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: const Color(0xFF161312),
+                            fontWeight: FontWeight.bold,
+                            fontSize: r.sp(13),
+                          ),
+                        ),
+                ),
+              ],
             );
           },
         );
