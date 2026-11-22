@@ -7,6 +7,7 @@ import '../../core/supabase/supabase_config.dart';
 import '../../core/supabase/supabase_tables.dart';
 import '../enums/enums.dart';
 import '../utils/app_utils.dart';
+import '../widgets/top_notification.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -80,11 +81,16 @@ class NotificationService {
         debugPrint('NotificationService: Got FCM message in foreground: ${message.messageId}');
         debugPrint('NotificationService: Message data: ${message.data}');
         if (message.notification != null) {
-          debugPrint('NotificationService: Notification title: ${message.notification!.title}');
-          debugPrint('NotificationService: Notification body: ${message.notification!.body}');
+          final title = message.notification!.title ?? 'New Notification';
+          final body = message.notification!.body ?? '';
+          NotificationsNotifier.postGlobal(
+            title: title,
+            message: body,
+            type: NotificationType.info,
+          );
           _showLocalNotification(
-            title: message.notification!.title ?? 'New Notification',
-            body: message.notification!.body ?? '',
+            title: title,
+            body: body,
             payload: message.data['id'],
           );
         }
@@ -145,9 +151,22 @@ class NotificationService {
           callback: (payload) {
             debugPrint('NotificationService: Received new notification from Supabase: $payload');
             final newRecord = payload.newRecord;
+            final title = newRecord['title'] as String? ?? 'New Notification';
+            final body = newRecord['message'] as String? ?? '';
+            final isResult = title.toLowerCase().contains('result') || body.toLowerCase().contains('result');
+            final notifType = isResult ? NotificationType.result : NotificationType.info;
+
+            // 1. Show floating heads-up in-app notification banner
+            NotificationsNotifier.postGlobal(
+              title: title,
+              message: body,
+              type: notifType,
+            );
+
+            // 2. Also dispatch system tray notification
             _showLocalNotification(
-              title: newRecord['title'] ?? 'New Notification',
-              body: newRecord['message'] ?? '',
+              title: title,
+              body: body,
               payload: newRecord['id'],
             );
           },

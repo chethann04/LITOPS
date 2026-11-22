@@ -333,7 +333,7 @@ class SettingsScreen extends ConsumerWidget {
       useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _NotificationsSheet(userId: userId),
+      builder: (ctx) => NotificationsSheet(userId: userId),
     );
   }
 
@@ -349,15 +349,15 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-class _NotificationsSheet extends StatefulWidget {
+class NotificationsSheet extends StatefulWidget {
   final String userId;
-  const _NotificationsSheet({required this.userId});
+  const NotificationsSheet({super.key, required this.userId});
 
   @override
-  State<_NotificationsSheet> createState() => _NotificationsSheetState();
+  State<NotificationsSheet> createState() => _NotificationsSheetState();
 }
 
-class _NotificationsSheetState extends State<_NotificationsSheet> {
+class _NotificationsSheetState extends State<NotificationsSheet> {
   List<dynamic> _notifications = [];
   bool _isLoading = true;
 
@@ -400,6 +400,25 @@ class _NotificationsSheetState extends State<_NotificationsSheet> {
         final index = _notifications.indexWhere((n) => n['id'] == id);
         if (index != -1) {
           _notifications[index]['is_read'] = true;
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _markAllAsRead() async {
+    try {
+      final unreadIds = _notifications.where((n) => n['is_read'] != true).map((n) => n['id']).toList();
+      if (unreadIds.isEmpty) return;
+
+      await SupabaseConfig.client
+          .from(SupabaseTables.notifications)
+          .update({'is_read': true})
+          .eq('user_id', widget.userId)
+          .eq('is_read', false);
+
+      setState(() {
+        for (final n in _notifications) {
+          n['is_read'] = true;
         }
       });
     } catch (_) {}
@@ -448,6 +467,19 @@ class _NotificationsSheetState extends State<_NotificationsSheet> {
                   ),
                 ),
                 const Spacer(),
+                if (_notifications.any((n) => n['is_read'] != true))
+                  TextButton.icon(
+                    onPressed: _markAllAsRead,
+                    icon: Icon(Icons.done_all_rounded, size: r.icon(16), color: LitColors.ember),
+                    label: Text(
+                      'Mark all read',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: r.sp(11.5),
+                        fontWeight: FontWeight.bold,
+                        color: LitColors.ember,
+                      ),
+                    ),
+                  ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
                   icon: Icon(Icons.close_rounded, color: LitColors.ash, size: r.icon(20)),
@@ -455,7 +487,7 @@ class _NotificationsSheetState extends State<_NotificationsSheet> {
               ],
             ),
           ),
-          SizedBox(height: r.h(16)),
+          SizedBox(height: r.h(12)),
           Divider(height: 1, color: LitColors.border),
           Expanded(
             child: _isLoading
@@ -464,11 +496,12 @@ class _NotificationsSheetState extends State<_NotificationsSheet> {
                     ? const EmptyView(
                         icon: Icons.notifications_off_outlined,
                         title: "You're all caught up!",
+                        subtitle: "No notifications right now.",
                       )
                     : ListView.separated(
-                        padding: EdgeInsets.fromLTRB(r.w(24), r.w(24), r.w(24), r.w(24) + r.bottomSafeArea),
+                        padding: EdgeInsets.fromLTRB(r.w(16), r.h(16), r.w(16), r.h(16) + r.bottomSafeArea),
                         itemCount: _notifications.length,
-                        separatorBuilder: (_, __) => SizedBox(height: r.h(16)),
+                        separatorBuilder: (_, __) => SizedBox(height: r.h(10)),
                         itemBuilder: (context, index) {
                           final n = _notifications[index];
                           final isRead = n['is_read'] == true;
@@ -487,74 +520,108 @@ class _NotificationsSheetState extends State<_NotificationsSheet> {
                             timeAgo = 'Just now';
                           }
 
-                          return GestureDetector(
+                          final title = n['title'] as String? ?? 'Notification';
+                          final isResult = title.toLowerCase().contains('result');
+                          final iconColor = isResult
+                              ? LitColors.amber
+                              : (isRead ? LitColors.ash : LitColors.ember);
+
+                          return InkWell(
                             onTap: () {
                               if (!isRead) _markAsRead(n['id']);
                             },
+                            borderRadius: BorderRadius.circular(r.radius(16)),
                             child: Container(
-                              padding: EdgeInsets.all(r.w(16)),
+                              padding: EdgeInsets.all(r.w(14)),
                               decoration: BoxDecoration(
                                 color: isRead
-                                    ? Colors.white.withValues(alpha: 0.03)
-                                    : LitColors.ember.withValues(alpha: 0.1),
+                                    ? const Color(0xFF161312)
+                                    : const Color(0xFF221B18),
                                 borderRadius: BorderRadius.circular(r.radius(16)),
                                 border: Border.all(
                                   color: isRead
-                                      ? Colors.white.withValues(alpha: 0.05)
-                                      : LitColors.ember.withValues(alpha: 0.3),
+                                      ? const Color(0xFF282220)
+                                      : LitColors.ember.withValues(alpha: 0.35),
+                                  width: isRead ? 1.0 : 1.2,
                                 ),
+                                boxShadow: isRead
+                                    ? null
+                                    : [
+                                        BoxShadow(
+                                          color: LitColors.ember.withValues(alpha: 0.08),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
                               ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Container(
-                                    padding: EdgeInsets.all(r.w(10)),
+                                    width: r.w(36),
+                                    height: r.w(36),
                                     decoration: BoxDecoration(
-                                      color: isRead
-                                          ? Colors.white.withValues(alpha: 0.1)
-                                          : LitColors.ember,
-                                      shape: BoxShape.circle,
+                                      color: iconColor.withValues(alpha: isRead ? 0.08 : 0.16),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: iconColor.withValues(alpha: isRead ? 0.15 : 0.35),
+                                      ),
                                     ),
                                     child: Icon(
-                                      isRead ? Icons.notifications_none : Icons.notifications,
-                                      color: isRead ? Colors.white : const Color(0xFF1A0D05),
-                                      size: r.icon(16),
+                                      isResult
+                                          ? Icons.emoji_events_rounded
+                                          : (isRead
+                                              ? Icons.notifications_none_rounded
+                                              : Icons.notifications_active_rounded),
+                                      color: iconColor,
+                                      size: r.icon(18),
                                     ),
                                   ),
-                                  SizedBox(width: r.w(16)),
+                                  SizedBox(width: r.w(12)),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
                                             Expanded(
                                               child: Text(
-                                                n['title'] ?? 'Notification',
+                                                title,
                                                 style: GoogleFonts.plusJakartaSans(
                                                   color: LitColors.bone,
-                                                  fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
-                                                  fontSize: r.sp(14),
+                                                  fontWeight: isRead ? FontWeight.w600 : FontWeight.bold,
+                                                  fontSize: r.sp(13.5),
                                                 ),
                                               ),
                                             ),
+                                            if (!isRead)
+                                              Container(
+                                                width: 7,
+                                                height: 7,
+                                                margin: EdgeInsets.symmetric(horizontal: r.w(6)),
+                                                decoration: const BoxDecoration(
+                                                  color: LitColors.ember,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
                                             Text(
                                               timeAgo,
                                               style: GoogleFonts.plusJakartaSans(
                                                 color: LitColors.ash,
-                                                fontSize: r.sp(11),
+                                                fontSize: r.sp(10.5),
                                               ),
                                             ),
                                           ],
                                         ),
-                                        SizedBox(height: r.h(6)),
+                                        SizedBox(height: r.h(4)),
                                         Text(
                                           n['message'] ?? '',
                                           style: GoogleFonts.plusJakartaSans(
-                                            color: LitColors.bone.withValues(alpha: 0.7),
+                                            color: isRead
+                                                ? LitColors.ash
+                                                : LitColors.bone.withValues(alpha: 0.85),
                                             fontSize: r.sp(12),
-                                            height: 1.4,
+                                            height: 1.35,
                                           ),
                                         ),
                                       ],
