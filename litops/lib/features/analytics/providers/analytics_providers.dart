@@ -4,9 +4,9 @@ import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/enums/enums.dart';
 
 // Trigger streams for realtime updates (Defined outside to avoid infinite loops)
-final _regStreamProvider = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.registrations).stream(primaryKey: ['id']));
-final _eventStreamProvider = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.events).stream(primaryKey: ['id']));
-final _attendanceStreamProvider = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.attendance).stream(primaryKey: ['id']));
+final _regStreamProvider = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.registrations).stream(primaryKey: ['id']).handleError((e) {}));
+final _eventStreamProvider = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.events).stream(primaryKey: ['id']).handleError((e) {}));
+final _attendanceStreamProvider = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.attendance).stream(primaryKey: ['id']).handleError((e) {}));
 
 final analyticsSummaryProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   ref.watch(_regStreamProvider);

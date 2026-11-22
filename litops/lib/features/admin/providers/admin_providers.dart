@@ -67,7 +67,7 @@ final auditLogsProvider = FutureProvider<List<AuditExtended>>((ref) async {
 });
 
 final _yearlyArchivesStream = StreamProvider((ref) => 
-  SupabaseConfig.client.from(SupabaseTables.yearlyArchives).stream(primaryKey: ['id'])
+  SupabaseConfig.client.from(SupabaseTables.yearlyArchives).stream(primaryKey: ['id']).handleError((e) {})
 );
 
 final yearlyArchivesProvider = FutureProvider<List<YearlyArchive>>((ref) async {
@@ -90,9 +90,9 @@ final activeYearlyArchiveProvider = FutureProvider<YearlyArchive?>((ref) async {
   return YearlyArchive.fromJson(data);
 });
 
-final _pointsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.eventPoints).stream(primaryKey: ['id']));
-final _resultsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.results).stream(primaryKey: ['id']));
-final _registrationsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.registrations).stream(primaryKey: ['id']));
+final _pointsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.eventPoints).stream(primaryKey: ['id']).handleError((e) {}));
+final _resultsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.results).stream(primaryKey: ['id']).handleError((e) {}));
+final _registrationsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.registrations).stream(primaryKey: ['id']).handleError((e) {}));
 
 final departmentRankingsProvider = FutureProvider<List<DepartmentRanking>>((ref) async {
   // List of ALL participating departments

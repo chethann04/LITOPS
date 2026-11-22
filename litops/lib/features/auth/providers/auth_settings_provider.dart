@@ -41,6 +41,7 @@ final _appSettingsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((r
   return SupabaseConfig.client
       .from(SupabaseTables.appSettings)
       .stream(primaryKey: ['key'])
+      .handleError((e) => debugPrint('_appSettingsStream error: $e'))
       .map((rows) => rows.cast<Map<String, dynamic>>());
 });
 

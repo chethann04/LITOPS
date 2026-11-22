@@ -13,6 +13,7 @@ import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../auth/providers/auth_provider.dart';
+import 'events_screen.dart' show eventsListProvider;
 
 final eventDetailProvider = StreamProvider.family<Event, String>((ref, eventId) async* {
   print('📡 [Realtime] eventDetailProvider starting for $eventId');
@@ -390,14 +391,35 @@ class EventDetailScreen extends ConsumerWidget {
                                       ),
                                     ),
                                   );
-                                  if (newStatus != null) {
-                                    await SupabaseConfig.client
-                                        .from(SupabaseTables.events)
-                                        .update({
-                                          'status': newStatus.value,
-                                          'updated_at': DateTime.now().toIso8601String()
-                                        })
-                                        .eq('id', eventId);
+                                  if (newStatus != null && newStatus != event.status) {
+                                    try {
+                                      final updatedEvent = await SupabaseConfig.client
+                                          .from(SupabaseTables.events)
+                                          .update({'status': newStatus.value})
+                                          .eq('id', eventId)
+                                          .select('id, status')
+                                          .maybeSingle();
+
+                                      if (updatedEvent == null || updatedEvent['status'] != newStatus.value) {
+                                        throw StateError('The event status was not saved. Check your permissions and try again.');
+                                      }
+
+                                      // Do not rely solely on Supabase Realtime to refresh the visible status.
+                                      ref.invalidate(eventDetailProvider(eventId));
+                                      ref.invalidate(eventsListProvider);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Event status updated successfully')),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      debugPrint('Error updating event status: $e');
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Failed to update event status: $e')),
+                                        );
+                                      }
+                                    }
                                   }
                                 },
                                 child: StatusChip(label: event.status.label),

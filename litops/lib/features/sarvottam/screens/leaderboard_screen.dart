@@ -60,8 +60,8 @@ final leaderboardProvider = StreamProvider<List<DepartmentResult>>((ref) async* 
       .stream(primaryKey: ['id']);
 
   final controller = StreamController<void>();
-  final sub1 = resultsStream.listen((_) => controller.add(null));
-  final sub2 = eventsStream.listen((_) => controller.add(null));
+  final sub1 = resultsStream.listen((_) => controller.add(null), onError: (e) => debugPrint('Leaderboard resultsStream error: $e'));
+  final sub2 = eventsStream.listen((_) => controller.add(null), onError: (e) => debugPrint('Leaderboard eventsStream error: $e'));
 
   ref.onDispose(() {
     sub1.cancel();
@@ -227,6 +227,7 @@ final publishedEventsProvider = StreamProvider<List<Event>>((ref) {
       .stream(primaryKey: ['id'])
       .eq('status', EventStatus.resultsPublished.value)
       .order('updated_at', ascending: false)
+      .handleError((e) => debugPrint('publishedEvents stream error: $e'))
       .map((data) => data.map((e) => Event.fromJson(e)).toList());
 });
 

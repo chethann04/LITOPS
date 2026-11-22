@@ -16,6 +16,7 @@ final completedEventsProvider = StreamProvider<List<Event>>((ref) {
       .from(SupabaseTables.events)
       .stream(primaryKey: ['id'])
       .order('updated_at', ascending: false)
+      .handleError((e) => debugPrint('completedEvents stream error: $e'))
       .map((data) {
         final events = data.map((e) => Event.fromJson(e)).toList();
         return events.where((e) {
@@ -29,6 +30,7 @@ final eventResultsProvider = StreamProvider.family<List<Map<String, dynamic>>, S
       .from(SupabaseTables.results)
       .stream(primaryKey: ['id'])
       .eq('event_id', eventId)
+      .handleError((e) => debugPrint('eventResults stream error: $e'))
       .map((data) {
         return List<Map<String, dynamic>>.from(data);
       });

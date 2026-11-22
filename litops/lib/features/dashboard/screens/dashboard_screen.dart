@@ -14,15 +14,16 @@ import '../../../core/utils/responsive.dart';
 import '../../../core/config/role_config.dart';
 import 'package:intl/intl.dart';
 
-final _registrationsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.registrations).stream(primaryKey: ['id']));
-final _eventsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.events).stream(primaryKey: ['id']));
-final _assignmentsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.eventAssignments).stream(primaryKey: ['id']));
+final _registrationsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.registrations).stream(primaryKey: ['id']).handleError((e) {}));
+final _eventsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.events).stream(primaryKey: ['id']).handleError((e) {}));
+final _assignmentsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.eventAssignments).stream(primaryKey: ['id']).handleError((e) {}));
 
 final activeProfilesStreamProvider = StreamProvider<List<Profile>>((ref) {
   return SupabaseConfig.client
       .from(SupabaseTables.profiles)
       .stream(primaryKey: ['id'])
       .eq('is_active', true)
+      .handleError((e) => debugPrint('activeProfiles stream error: $e'))
       .map((data) {
         final list = data.map((json) => Profile.fromJson(json)).toList();
         list.sort((a, b) {
@@ -41,18 +42,57 @@ final rulebookStreamProvider = StreamProvider<Rulebook?>((ref) {
   return SupabaseConfig.client
       .from('rulebook')
       .stream(primaryKey: ['id'])
+      .handleError((e) => debugPrint('rulebook stream error: $e'))
       .map((data) {
         if (data.isEmpty) return null;
         return Rulebook.fromJson(data.first);
       });
 });
 
-final ongoingEventsProvider = StreamProvider<List<Event>>((ref) {
-  return SupabaseConfig.client
-      .from(SupabaseTables.events)
-      .stream(primaryKey: ['id'])
-      .eq('status', EventStatus.ongoing.value)
-      .map((data) => data.map((e) => Event.fromJson(e)).toList());
+final ongoingEventsProvider = StreamProvider<List<Event>>((ref) async* {
+  Future<List<Event>> fetchOngoing() async {
+    try {
+      final data = await SupabaseConfig.client
+          .from(SupabaseTables.events)
+          .select()
+          .eq('status', EventStatus.ongoing.value);
+      return (data as List).map((e) => Event.fromJson(e)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  List<Event> current = [];
+  try {
+    current = await fetchOngoing();
+    yield current;
+  } catch (_) {
+    yield [];
+  }
+
+  while (true) {
+    try {
+      final stream = SupabaseConfig.client
+          .from(SupabaseTables.events)
+          .stream(primaryKey: ['id'])
+          .eq('status', EventStatus.ongoing.value);
+
+      await for (final data in stream) {
+        current = data.map((e) => Event.fromJson(e)).toList();
+        yield current;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [Realtime] ongoingEventsProvider stream error: $e');
+      try {
+        final fresh = await fetchOngoing();
+        if (fresh.isNotEmpty) {
+          current = fresh;
+          yield current;
+        }
+      } catch (_) {}
+      await Future.delayed(const Duration(seconds: 5));
+    }
+  }
 });
 
 final myAssignedEventsProvider = FutureProvider<List<Event>>((ref) async {

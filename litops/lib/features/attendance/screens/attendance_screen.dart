@@ -10,10 +10,10 @@ import '../../auth/providers/auth_provider.dart';
 
 // Stream triggers for realtime updates
 final _attendanceRegistrationsStream = StreamProvider.family((ref, String eventId) => 
-  SupabaseConfig.client.from(SupabaseTables.registrations).stream(primaryKey: ['id']).eq('event_id', eventId)
+  SupabaseConfig.client.from(SupabaseTables.registrations).stream(primaryKey: ['id']).eq('event_id', eventId).handleError((e) {})
 );
 final _attendanceStream = StreamProvider.family((ref, String eventId) => 
-  SupabaseConfig.client.from(SupabaseTables.attendance).stream(primaryKey: ['id']).eq('event_id', eventId)
+  SupabaseConfig.client.from(SupabaseTables.attendance).stream(primaryKey: ['id']).eq('event_id', eventId).handleError((e) {})
 );
 
 final eventAttendanceProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, eventId) async {

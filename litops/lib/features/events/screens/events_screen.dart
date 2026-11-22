@@ -11,27 +11,64 @@ import '../../../core/widgets/common_widgets.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../core/config/role_config.dart';
 
 final eventsListProvider = StreamProvider<List<Event>>((ref) async* {
-  print('📡 [Realtime] eventsListProvider stream starting');
-  
-  try {
-    final stream = SupabaseConfig.client
-        .from(SupabaseTables.events)
-        .stream(primaryKey: ['id'])
-        .order('updated_at', ascending: false);
+  debugPrint('📡 [Realtime] eventsListProvider starting');
+  bool hasEmitted = false;
+  List<Event> currentEvents = [];
 
-    await for (final data in stream) {
-      print('📡 [Realtime] eventsListProvider received ${data.length} events');
-      for (var e in data) {
-        print('   - Event: ${e['id']} - ${e['title']} - status: ${e['status']}');
-      }
-      yield data.map((e) => Event.fromJson(e)).toList();
-    }
+  // 1. Initial immediate REST fetch (bypasses any WebSocket handshake delays or socket drop)
+  try {
+    final res = await SupabaseConfig.client
+        .from(SupabaseTables.events)
+        .select()
+        .order('updated_at', ascending: false);
+    currentEvents = (res as List).map((e) => Event.fromJson(e)).toList();
+    yield currentEvents;
+    hasEmitted = true;
+    debugPrint('📡 [Events] Initial REST loaded ${currentEvents.length} events');
   } catch (e) {
-    print('❌ [Realtime] eventsListProvider error: $e');
-    rethrow;
+    debugPrint('⚠️ [Events] Initial REST fetch error: $e');
+  }
+
+  // 2. Realtime stream with seamless fallback and retry
+  while (true) {
+    try {
+      final stream = SupabaseConfig.client
+          .from(SupabaseTables.events)
+          .stream(primaryKey: ['id'])
+          .order('updated_at', ascending: false);
+
+      await for (final data in stream) {
+        currentEvents = data.map((e) => Event.fromJson(e)).toList();
+        yield currentEvents;
+        hasEmitted = true;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [Realtime] eventsListProvider stream error: $e');
+
+      // Try fetching via REST backup
+      try {
+        final res = await SupabaseConfig.client
+            .from(SupabaseTables.events)
+            .select()
+            .order('updated_at', ascending: false);
+        currentEvents = (res as List).map((e) => Event.fromJson(e)).toList();
+        yield currentEvents;
+        hasEmitted = true;
+      } catch (restErr) {
+        debugPrint('⚠️ [Realtime] eventsListProvider backup REST failed: $restErr');
+      }
+
+      // If we haven't emitted anything yet, emit empty list rather than crashing
+      if (!hasEmitted) {
+        yield [];
+        hasEmitted = true;
+      }
+
+      debugPrint('📡 [Realtime] Retrying events stream in 5 seconds...');
+      await Future.delayed(const Duration(seconds: 5));
+    }
   }
 });
 
@@ -209,7 +246,57 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
           );
         },
         loading: () => const LoadingView(),
-        error: (err, _) => Center(child: Text('Error loading events: $err', style: GoogleFonts.plusJakartaSans(color: LitColors.coral))),
+        error: (err, _) => Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: r.w(24)),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.wifi_off_rounded, size: r.icon(48), color: LitColors.coral),
+                SizedBox(height: r.h(16)),
+                Text(
+                  'Unable to load events',
+                  style: GoogleFonts.fredoka(
+                    fontSize: r.sp(18),
+                    fontWeight: FontWeight.w600,
+                    color: LitColors.bone,
+                  ),
+                ),
+                SizedBox(height: r.h(8)),
+                Text(
+                  'Please check your internet connection and try again.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: r.sp(13),
+                    color: LitColors.ash,
+                  ),
+                ),
+                SizedBox(height: r.h(20)),
+                ClayButton(
+                  width: r.w(130),
+                  height: r.h(42),
+                  borderRadius: r.radius(21),
+                  onPressed: () => ref.invalidate(eventsListProvider),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.refresh_rounded, size: r.icon(16), color: Colors.white),
+                      SizedBox(width: r.w(6)),
+                      Text(
+                        'Retry',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: r.sp(14),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       floatingActionButton: ref.watch(roleConfigProvider).canCreateEvents
           ? Padding(
