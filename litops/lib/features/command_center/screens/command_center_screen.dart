@@ -26,50 +26,70 @@ class _CommandCenterScreenState extends ConsumerState<CommandCenterScreen> {
   List<Announcement> _announcements = [];
   List<Incident> _incidents = [];
   RealtimeChannel? _realtimeSub;
+  Timer? _refreshTimer;
 
   @override
-  void initState() { super.initState(); _loadData(); _setupRealtime(); }
-
-  Future<void> _loadData() async {
-    final eventData = await SupabaseConfig.client.from(SupabaseTables.events).select().eq('id', widget.eventId).single();
-    final regs = await SupabaseConfig.client.from(SupabaseTables.registrations).select('id').eq('event_id', widget.eventId).eq('is_cancelled', false);
-    final att = await SupabaseConfig.client.from(SupabaseTables.attendance).select('id').eq('event_id', widget.eventId);
-    final wait = await SupabaseConfig.client.from(SupabaseTables.waitingList).select('id').eq('event_id', widget.eventId).eq('is_promoted', false);
-    final annData = await SupabaseConfig.client.from(SupabaseTables.announcements).select().eq('event_id', widget.eventId).order('created_at', ascending: false);
-    final incData = await SupabaseConfig.client.from(SupabaseTables.incidents).select().eq('event_id', widget.eventId).order('created_at', ascending: false);
-
-    setState(() {
-      _event = Event.fromJson(eventData);
-      _regCount = (regs as List).length;
-      _attCount = (att as List).length;
-      _waitCount = (wait as List).length;
-      _announcements = (annData as List).map((a) => Announcement.fromJson(a)).toList();
-      _incidents = (incData as List).map((i) => Incident.fromJson(i)).toList();
+  void initState() {
+    super.initState();
+    _loadData();
+    _setupRealtime();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted) _loadData();
     });
   }
 
-  void _setupRealtime() {
-    _realtimeSub = SupabaseConfig.client.channel('command_center_${widget.eventId}')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: SupabaseTables.registrations,
-          filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'event_id', value: widget.eventId),
-          callback: (payload) => _loadData(),
-        )
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: SupabaseTables.attendance,
-          filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'event_id', value: widget.eventId),
-          callback: (payload) => _loadData(),
-        )
+  Future<void> _loadData() async {
+    try {
+      final eventData = await SupabaseConfig.client.from(SupabaseTables.events).select().eq('id', widget.eventId).maybeSingle();
+      if (eventData == null) return;
+      final regs = await SupabaseConfig.client.from(SupabaseTables.registrations).select('id').eq('event_id', widget.eventId).eq('is_cancelled', false);
+      final att = await SupabaseConfig.client.from(SupabaseTables.attendance).select('id').eq('event_id', widget.eventId);
+      final wait = await SupabaseConfig.client.from(SupabaseTables.waitingList).select('id').eq('event_id', widget.eventId).eq('is_promoted', false);
+      final annData = await SupabaseConfig.client.from(SupabaseTables.announcements).select().eq('event_id', widget.eventId).order('created_at', ascending: false);
+      final incData = await SupabaseConfig.client.from(SupabaseTables.incidents).select().eq('event_id', widget.eventId).order('created_at', ascending: false);
 
-        .subscribe();
+      if (mounted) {
+        setState(() {
+          _event = Event.fromJson(eventData);
+          _regCount = (regs as List).length;
+          _attCount = (att as List).length;
+          _waitCount = (wait as List).length;
+          _announcements = (annData as List).map((a) => Announcement.fromJson(a)).toList();
+          _incidents = (incData as List).map((i) => Incident.fromJson(i)).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Command center auto-refresh error: $e');
+    }
+  }
+
+  void _setupRealtime() {
+    try {
+      _realtimeSub = SupabaseConfig.client.channel('command_center_${widget.eventId}')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: SupabaseTables.registrations,
+            filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'event_id', value: widget.eventId),
+            callback: (payload) => _loadData(),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: SupabaseTables.attendance,
+            filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'event_id', value: widget.eventId),
+            callback: (payload) => _loadData(),
+          )
+          .subscribe();
+    } catch (_) {}
   }
 
   @override
-  void dispose() { if (_realtimeSub != null) SupabaseConfig.client.removeChannel(_realtimeSub!); super.dispose(); }
+  void dispose() {
+    _refreshTimer?.cancel();
+    if (_realtimeSub != null) SupabaseConfig.client.removeChannel(_realtimeSub!);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

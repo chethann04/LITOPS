@@ -12,41 +12,55 @@ import '../../../core/models/models.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/config/role_config.dart';
+import '../../../core/providers/auto_refresh_provider.dart';
 import 'package:intl/intl.dart';
 
-final _registrationsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.registrations).stream(primaryKey: ['id']).handleError((e) {}));
-final _eventsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.events).stream(primaryKey: ['id']).handleError((e) {}));
-final _assignmentsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.eventAssignments).stream(primaryKey: ['id']).handleError((e) {}));
-
-final activeProfilesStreamProvider = StreamProvider<List<Profile>>((ref) {
-  return SupabaseConfig.client
-      .from(SupabaseTables.profiles)
-      .stream(primaryKey: ['id'])
-      .eq('is_active', true)
-      .handleError((e) => debugPrint('activeProfiles stream error: $e'))
-      .map((data) {
-        final list = data.map((json) => Profile.fromJson(json)).toList();
-        list.sort((a, b) {
-          final levelA = a.role.hierarchyLevel;
-          final levelB = b.role.hierarchyLevel;
-          if (levelA != levelB) {
-            return levelA.compareTo(levelB);
-          }
-          return a.fullName.compareTo(b.fullName);
-        });
-        return list;
+final activeProfilesStreamProvider = StreamProvider<List<Profile>>((ref) async* {
+  Future<List<Profile>> fetchProfiles() async {
+    try {
+      final res = await SupabaseConfig.client
+          .from(SupabaseTables.profiles)
+          .select()
+          .eq('is_active', true);
+      final list = (res as List).map((json) => Profile.fromJson(json)).toList();
+      list.sort((a, b) {
+        final levelA = a.role.hierarchyLevel;
+        final levelB = b.role.hierarchyLevel;
+        if (levelA != levelB) {
+          return levelA.compareTo(levelB);
+        }
+        return a.fullName.compareTo(b.fullName);
       });
+      return list;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  yield await fetchProfiles();
+
+  await for (final _ in Stream.periodic(const Duration(seconds: 4))) {
+    yield await fetchProfiles();
+  }
 });
 
-final rulebookStreamProvider = StreamProvider<Rulebook?>((ref) {
-  return SupabaseConfig.client
-      .from('rulebook')
-      .stream(primaryKey: ['id'])
-      .handleError((e) => debugPrint('rulebook stream error: $e'))
-      .map((data) {
-        if (data.isEmpty) return null;
-        return Rulebook.fromJson(data.first);
-      });
+final rulebookStreamProvider = StreamProvider<Rulebook?>((ref) async* {
+  Future<Rulebook?> fetchRulebook() async {
+    try {
+      final data = await SupabaseConfig.client
+          .from('rulebook')
+          .select()
+          .maybeSingle();
+      if (data != null) return Rulebook.fromJson(data);
+    } catch (_) {}
+    return null;
+  }
+
+  yield await fetchRulebook();
+
+  await for (final _ in Stream.periodic(const Duration(seconds: 10))) {
+    yield await fetchRulebook();
+  }
 });
 
 final ongoingEventsProvider = StreamProvider<List<Event>>((ref) async* {
@@ -62,42 +76,16 @@ final ongoingEventsProvider = StreamProvider<List<Event>>((ref) async* {
     }
   }
 
-  List<Event> current = [];
-  try {
-    current = await fetchOngoing();
-    yield current;
-  } catch (_) {
-    yield [];
-  }
+  yield await fetchOngoing();
 
-  while (true) {
-    try {
-      final stream = SupabaseConfig.client
-          .from(SupabaseTables.events)
-          .stream(primaryKey: ['id'])
-          .eq('status', EventStatus.ongoing.value);
-
-      await for (final data in stream) {
-        current = data.map((e) => Event.fromJson(e)).toList();
-        yield current;
-      }
-    } catch (e) {
-      debugPrint('⚠️ [Realtime] ongoingEventsProvider stream error: $e');
-      try {
-        final fresh = await fetchOngoing();
-        if (fresh.isNotEmpty) {
-          current = fresh;
-          yield current;
-        }
-      } catch (_) {}
-      await Future.delayed(const Duration(seconds: 5));
-    }
+  await for (final _ in Stream.periodic(const Duration(seconds: 3))) {
+    yield await fetchOngoing();
   }
 });
 
 final myAssignedEventsProvider = FutureProvider<List<Event>>((ref) async {
-  // Watch for any assignment changes to trigger a re-fetch
-  ref.watch(_assignmentsStream);
+  // Auto-refresh assigned events
+  ref.watch(autoRefreshProvider);
   
   final profile = ref.read(currentProfileProvider);
   if (profile == null) return [];
@@ -111,9 +99,8 @@ final myAssignedEventsProvider = FutureProvider<List<Event>>((ref) async {
 });
 
 final dashboardStatsProvider = FutureProvider<Map<String, int>>((ref) async {
-  // Re-run stats calculation whenever registrations or events change
-  ref.watch(_registrationsStream);
-  ref.watch(_eventsStream);
+  // Auto-refresh stats in real-time
+  ref.watch(autoRefreshProvider);
 
   try {
     final activeArchive = await ref.watch(activeYearlyArchiveProvider.future);

@@ -10,64 +10,32 @@ import '../../../core/theme/theme.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/providers/auto_refresh_provider.dart';
 import '../../../core/utils/responsive.dart';
 
 final eventsListProvider = StreamProvider<List<Event>>((ref) async* {
-  debugPrint('📡 [Realtime] eventsListProvider starting');
-  bool hasEmitted = false;
-  List<Event> currentEvents = [];
-
-  // 1. Initial immediate REST fetch (bypasses any WebSocket handshake delays or socket drop)
-  try {
-    final res = await SupabaseConfig.client
-        .from(SupabaseTables.events)
-        .select()
-        .order('updated_at', ascending: false);
-    currentEvents = (res as List).map((e) => Event.fromJson(e)).toList();
-    yield currentEvents;
-    hasEmitted = true;
-    debugPrint('📡 [Events] Initial REST loaded ${currentEvents.length} events');
-  } catch (e) {
-    debugPrint('⚠️ [Events] Initial REST fetch error: $e');
+  Future<List<Event>?> fetchEvents() async {
+    try {
+      final res = await SupabaseConfig.client
+          .from(SupabaseTables.events)
+          .select()
+          .order('updated_at', ascending: false);
+      return (res as List).map((e) => Event.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('⚠️ [Events] Auto-refresh fetch error: $e');
+      return null;
+    }
   }
 
-  // 2. Realtime stream with seamless fallback and retry
-  while (true) {
-    try {
-      final stream = SupabaseConfig.client
-          .from(SupabaseTables.events)
-          .stream(primaryKey: ['id'])
-          .order('updated_at', ascending: false);
+  // 1. Initial immediate REST fetch
+  final initial = await fetchEvents();
+  yield initial ?? [];
 
-      await for (final data in stream) {
-        currentEvents = data.map((e) => Event.fromJson(e)).toList();
-        yield currentEvents;
-        hasEmitted = true;
-      }
-    } catch (e) {
-      debugPrint('⚠️ [Realtime] eventsListProvider stream error: $e');
-
-      // Try fetching via REST backup
-      try {
-        final res = await SupabaseConfig.client
-            .from(SupabaseTables.events)
-            .select()
-            .order('updated_at', ascending: false);
-        currentEvents = (res as List).map((e) => Event.fromJson(e)).toList();
-        yield currentEvents;
-        hasEmitted = true;
-      } catch (restErr) {
-        debugPrint('⚠️ [Realtime] eventsListProvider backup REST failed: $restErr');
-      }
-
-      // If we haven't emitted anything yet, emit empty list rather than crashing
-      if (!hasEmitted) {
-        yield [];
-        hasEmitted = true;
-      }
-
-      debugPrint('📡 [Realtime] Retrying events stream in 5 seconds...');
-      await Future.delayed(const Duration(seconds: 5));
+  // 2. Continuous automatic refresh every 3 seconds
+  await for (final _ in Stream.periodic(const Duration(seconds: 3))) {
+    final fresh = await fetchEvents();
+    if (fresh != null) {
+      yield fresh;
     }
   }
 });
@@ -425,6 +393,8 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
 }
 
 final eventConstraintsSummaryProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, eventId) async {
+  // Auto-refresh constraint counts in real time
+  ref.watch(autoRefreshProvider);
   try {
     final constraints = await SupabaseConfig.client
         .from(SupabaseTables.participationConstraints)

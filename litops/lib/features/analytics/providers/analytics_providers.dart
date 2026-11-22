@@ -2,16 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/enums/enums.dart';
-
-// Trigger streams for realtime updates (Defined outside to avoid infinite loops)
-final _regStreamProvider = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.registrations).stream(primaryKey: ['id']).handleError((e) {}));
-final _eventStreamProvider = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.events).stream(primaryKey: ['id']).handleError((e) {}));
-final _attendanceStreamProvider = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.attendance).stream(primaryKey: ['id']).handleError((e) {}));
+import '../../../core/providers/auto_refresh_provider.dart';
 
 final analyticsSummaryProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  ref.watch(_regStreamProvider);
-  ref.watch(_eventStreamProvider);
-  ref.watch(_attendanceStreamProvider);
+  // Auto-refresh analytics stats every 3 seconds
+  ref.watch(autoRefreshProvider);
   
   final client = SupabaseConfig.client;
   
@@ -45,8 +40,7 @@ final analyticsSummaryProvider = FutureProvider<Map<String, dynamic>>((ref) asyn
 });
 
 final categoryParticipationProvider = FutureProvider<Map<EventCategory, int>>((ref) async {
-  ref.watch(_regStreamProvider);
-  ref.watch(_eventStreamProvider);
+  ref.watch(autoRefreshProvider);
   
   final client = SupabaseConfig.client;
   
@@ -69,7 +63,7 @@ final categoryParticipationProvider = FutureProvider<Map<EventCategory, int>>((r
 });
 
 final registrationTrendProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  ref.watch(_regStreamProvider);
+  ref.watch(autoRefreshProvider);
   
   final client = SupabaseConfig.client;
   
@@ -105,7 +99,7 @@ final registrationTrendProvider = FutureProvider<List<Map<String, dynamic>>>((re
 });
 
 final branchParticipationProvider = FutureProvider<Map<String, int>>((ref) async {
-  ref.watch(_regStreamProvider);
+  ref.watch(autoRefreshProvider);
   
   final client = SupabaseConfig.client;
   

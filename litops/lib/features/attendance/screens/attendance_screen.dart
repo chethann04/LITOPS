@@ -6,25 +6,27 @@ import '../../../core/models/models.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
+import '../../../core/providers/auto_refresh_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
-// Stream triggers for realtime updates
-final _attendanceRegistrationsStream = StreamProvider.family((ref, String eventId) => 
-  SupabaseConfig.client.from(SupabaseTables.registrations).stream(primaryKey: ['id']).eq('event_id', eventId).handleError((e) {})
-);
-final _attendanceStream = StreamProvider.family((ref, String eventId) => 
-  SupabaseConfig.client.from(SupabaseTables.attendance).stream(primaryKey: ['id']).eq('event_id', eventId).handleError((e) {})
-);
-
 final eventAttendanceProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, eventId) async {
-  // Watch the streams to trigger re-fetch
-  ref.watch(_attendanceRegistrationsStream(eventId));
-  ref.watch(_attendanceStream(eventId));
+  // Automatically refresh attendance data every 3 seconds
+  ref.watch(autoRefreshProvider);
   
   final regs = await SupabaseConfig.client.from(SupabaseTables.registrations).select('id,student_id,student_master(name,usn,branch)').eq('event_id', eventId).eq('is_cancelled', false);
   final att = await SupabaseConfig.client.from(SupabaseTables.attendance).select('registration_id').eq('event_id', eventId);
   final attIds = (att as List).map((a) => a['registration_id']).toSet();
   return {'registrations': regs, 'attended': attIds, 'total': (regs as List).length, 'attendedCount': attIds.length};
+});
+
+final attendanceEventsProvider = FutureProvider<List<Event>>((ref) async {
+  ref.watch(autoRefreshProvider);
+  final res = await SupabaseConfig.client
+      .from(SupabaseTables.events)
+      .select()
+      .inFilter('status', ['ongoing', 'registration_open', 'registration_closed'])
+      .order('title');
+  return (res as List).map((e) => Event.fromJson(e)).toList();
 });
 
 class AttendanceScreen extends ConsumerWidget {
@@ -33,6 +35,7 @@ class AttendanceScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final role = ref.watch(currentUserRoleProvider);
+    final eventsAsync = ref.watch(attendanceEventsProvider);
     return Scaffold(
       backgroundColor: LitColors.void_,
       appBar: AppBar(
@@ -45,12 +48,10 @@ class AttendanceScreen extends ConsumerWidget {
         ),
       ),
       body: role.canMarkAttendance
-          ? FutureBuilder(
-              future: SupabaseConfig.client.from(SupabaseTables.events).select().inFilter('status', ['ongoing', 'registration_open', 'registration_closed']).order('title'),
-              builder: (ctx, snap) {
-                if (snap.connectionState == ConnectionState.waiting) return const LoadingView();
-                if (!snap.hasData) return const LoadingView();
-                final events = (snap.data as List).map((e) => Event.fromJson(e)).toList();
+          ? eventsAsync.when(
+              loading: () => const LoadingView(),
+              error: (err, _) => Center(child: Text('Error loading events: $err', style: const TextStyle(color: LitColors.coral))),
+              data: (events) {
                 if (events.isEmpty) return const EmptyView(icon: Icons.event_busy, title: 'No events available');
                 return ListView.builder(
                   padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 130),
@@ -68,9 +69,9 @@ class AttendanceScreen extends ConsumerWidget {
                         ),
                         subtitle: Text(
                           e.venue ?? 'TBA',
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: 11.5),
+                          style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: 12),
                         ),
-                        trailing: const Icon(Icons.chevron_right, color: LitColors.ash),
+                        trailing: const Icon(Icons.qr_code_scanner, color: LitColors.amber),
                       ),
                     );
                   },

@@ -18,9 +18,12 @@ import '../../events/screens/event_detail_screen.dart';
 import '../../events/screens/events_screen.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
 import '../../attendance/screens/attendance_screen.dart';
+import '../../../core/providers/auto_refresh_provider.dart';
 import '../../../core/utils/app_utils.dart';
 
 final activeEventsProvider = FutureProvider<List<Event>>((ref) async {
+  // Auto-refresh active registration events
+  ref.watch(autoRefreshProvider);
   final data = await SupabaseConfig.client
       .from(SupabaseTables.events)
       .select()

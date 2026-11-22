@@ -7,9 +7,11 @@ import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../auth/providers/auth_settings_provider.dart';
 import '../../students/providers/student_providers.dart';
+import '../../../core/providers/auto_refresh_provider.dart';
 
 // Providers for reading data
 final pendingProfilesProvider = FutureProvider<List<Profile>>((ref) async {
+  ref.watch(autoRefreshProvider);
   final profilesData = await SupabaseConfig.client
       .from(SupabaseTables.profiles)
       .select()
@@ -21,6 +23,7 @@ final pendingProfilesProvider = FutureProvider<List<Profile>>((ref) async {
 });
 
 final memberListProvider = FutureProvider<List<ClubMember>>((ref) async {
+  ref.watch(autoRefreshProvider);
   final profilesData = await SupabaseConfig.client
       .from(SupabaseTables.profiles)
       .select('*, member_assignments!member_assignments_user_id_fkey(*)')
@@ -95,13 +98,13 @@ final _resultsStream = StreamProvider((ref) => SupabaseConfig.client.from(Supaba
 final _registrationsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.registrations).stream(primaryKey: ['id']).handleError((e) {}));
 
 final departmentRankingsProvider = FutureProvider<List<DepartmentRanking>>((ref) async {
-  // List of ALL participating departments
+  // Auto-refresh department rankings
+  ref.watch(autoRefreshProvider);
+  ref.watch(_pointsStream);
+
   final allDepartments = [
     'CS', 'IS', 'CI', 'CB', 'RI', 'EC', 'VL', 'EI', 'EE', 'CV', 'ME'
   ];
-
-  // Watch points stream to trigger re-calculation
-  ref.watch(_pointsStream);
   
   try {
     // 1. Fetch all event points (single source of truth)

@@ -60,10 +60,14 @@ final leaderboardProvider = StreamProvider<List<DepartmentResult>>((ref) async* 
       .stream(primaryKey: ['id']);
 
   final controller = StreamController<void>();
+  final timer = Timer.periodic(const Duration(seconds: 4), (_) {
+    if (!controller.isClosed) controller.add(null);
+  });
   final sub1 = resultsStream.listen((_) => controller.add(null), onError: (e) => debugPrint('Leaderboard resultsStream error: $e'));
   final sub2 = eventsStream.listen((_) => controller.add(null), onError: (e) => debugPrint('Leaderboard eventsStream error: $e'));
 
   ref.onDispose(() {
+    timer.cancel();
     sub1.cancel();
     sub2.cancel();
     controller.close();
@@ -221,14 +225,25 @@ final leaderboardProvider = StreamProvider<List<DepartmentResult>>((ref) async* 
   }
 });
 
-final publishedEventsProvider = StreamProvider<List<Event>>((ref) {
-  return SupabaseConfig.client
-      .from(SupabaseTables.events)
-      .stream(primaryKey: ['id'])
-      .eq('status', EventStatus.resultsPublished.value)
-      .order('updated_at', ascending: false)
-      .handleError((e) => debugPrint('publishedEvents stream error: $e'))
-      .map((data) => data.map((e) => Event.fromJson(e)).toList());
+final publishedEventsProvider = StreamProvider<List<Event>>((ref) async* {
+  Future<List<Event>> fetchPublished() async {
+    try {
+      final res = await SupabaseConfig.client
+          .from(SupabaseTables.events)
+          .select()
+          .eq('status', EventStatus.resultsPublished.value)
+          .order('updated_at', ascending: false);
+      return (res as List).map((e) => Event.fromJson(e)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  yield await fetchPublished();
+
+  await for (final _ in Stream.periodic(const Duration(seconds: 4))) {
+    yield await fetchPublished();
+  }
 });
 
 class LeaderboardScreen extends ConsumerWidget {

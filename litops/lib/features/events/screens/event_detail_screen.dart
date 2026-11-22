@@ -15,10 +15,7 @@ import '../../auth/providers/auth_provider.dart';
 import 'events_screen.dart' show eventsListProvider;
 
 final eventDetailProvider = StreamProvider.family<Event, String>((ref, eventId) async* {
-  debugPrint('📡 [Realtime] eventDetailProvider starting for $eventId');
-  Event? currentEvent;
-
-  Future<Event?> fetchEventRest() async {
+  Future<Event?> fetchEvent() async {
     try {
       final res = await SupabaseConfig.client
           .from(SupabaseTables.events)
@@ -29,121 +26,66 @@ final eventDetailProvider = StreamProvider.family<Event, String>((ref, eventId) 
         return Event.fromJson(res);
       }
     } catch (e) {
-      debugPrint('⚠️ [Realtime] eventDetailProvider REST fetch failed: $e');
+      debugPrint('⚠️ [EventDetail] fetch error: $e');
     }
     return null;
   }
 
   // 1. Initial immediate REST fetch
-  final initial = await fetchEventRest();
-  if (initial != null) {
-    currentEvent = initial;
-    yield currentEvent;
-  }
+  final initial = await fetchEvent();
+  if (initial != null) yield initial;
 
-  // 2. Realtime loop with error suppression
-  while (true) {
-    try {
-      final stream = SupabaseConfig.client
-          .from(SupabaseTables.events)
-          .stream(primaryKey: ['id'])
-          .eq('id', eventId);
-
-      await for (final data in stream) {
-        if (data.isNotEmpty) {
-          currentEvent = Event.fromJson(data.first);
-          yield currentEvent;
-        }
-      }
-    } catch (e) {
-      debugPrint('⚠️ [Realtime] eventDetailProvider stream interrupted: $e');
-      final backup = await fetchEventRest();
-      if (backup != null) {
-        currentEvent = backup;
-        yield currentEvent;
-      }
-      await Future.delayed(const Duration(seconds: 5));
-    }
+  // 2. Automatic refresh loop every 3 seconds
+  await for (final _ in Stream.periodic(const Duration(seconds: 3))) {
+    final fresh = await fetchEvent();
+    if (fresh != null) yield fresh;
   }
 });
 
 final eventRegistrationsCountProvider = StreamProvider.family<int, String>((ref, eventId) async* {
-  int currentCount = 0;
-  try {
-    final res = await SupabaseConfig.client
-        .from(SupabaseTables.registrations)
-        .select()
-        .eq('event_id', eventId);
-    currentCount = (res as List).where((r) => r['is_cancelled'] == false).length;
-    yield currentCount;
-  } catch (e) {
-    debugPrint('⚠️ [Realtime] eventRegistrationsCountProvider initial REST fetch failed: $e');
-    yield 0;
+  Future<int> fetchCount() async {
+    try {
+      final res = await SupabaseConfig.client
+          .from(SupabaseTables.registrations)
+          .select('id')
+          .eq('event_id', eventId)
+          .eq('is_cancelled', false);
+      return (res as List).length;
+    } catch (e) {
+      debugPrint('⚠️ [EventRegistrations] fetch error: $e');
+      return 0;
+    }
   }
 
-  while (true) {
-    try {
-      final stream = SupabaseConfig.client
-          .from(SupabaseTables.registrations)
-          .stream(primaryKey: ['id'])
-          .eq('event_id', eventId);
+  // 1. Initial count
+  yield await fetchCount();
 
-      await for (final data in stream) {
-        currentCount = data.where((r) => r['is_cancelled'] == false).length;
-        yield currentCount;
-      }
-    } catch (e) {
-      debugPrint('⚠️ [Realtime] eventRegistrationsCountProvider stream error: $e');
-      try {
-        final res = await SupabaseConfig.client
-            .from(SupabaseTables.registrations)
-            .select()
-            .eq('event_id', eventId);
-        currentCount = (res as List).where((r) => r['is_cancelled'] == false).length;
-        yield currentCount;
-      } catch (_) {}
-      await Future.delayed(const Duration(seconds: 5));
-    }
+  // 2. Continuous 3-second automatic refresh
+  await for (final _ in Stream.periodic(const Duration(seconds: 3))) {
+    yield await fetchCount();
   }
 });
 
 final eventAttendanceCountProvider = StreamProvider.family<int, String>((ref, eventId) async* {
-  int currentCount = 0;
-  try {
-    final res = await SupabaseConfig.client
-        .from(SupabaseTables.attendance)
-        .select()
-        .eq('event_id', eventId);
-    currentCount = (res as List).length;
-    yield currentCount;
-  } catch (e) {
-    debugPrint('⚠️ [Realtime] eventAttendanceCountProvider initial REST fetch failed: $e');
-    yield 0;
+  Future<int> fetchCount() async {
+    try {
+      final res = await SupabaseConfig.client
+          .from(SupabaseTables.attendance)
+          .select('id')
+          .eq('event_id', eventId);
+      return (res as List).length;
+    } catch (e) {
+      debugPrint('⚠️ [EventAttendance] fetch error: $e');
+      return 0;
+    }
   }
 
-  while (true) {
-    try {
-      final stream = SupabaseConfig.client
-          .from(SupabaseTables.attendance)
-          .stream(primaryKey: ['id'])
-          .eq('event_id', eventId);
+  // 1. Initial count
+  yield await fetchCount();
 
-      await for (final data in stream) {
-        currentCount = data.length;
-        yield currentCount;
-      }
-    } catch (e) {
-      debugPrint('⚠️ [Realtime] eventAttendanceCountProvider stream error: $e');
-      try {
-        final res = await SupabaseConfig.client
-            .from(SupabaseTables.attendance)
-            .select()
-            .eq('event_id', eventId);
-        currentCount = (res as List).length;
-        yield currentCount;
-      } catch (_) {}
-      await Future.delayed(const Duration(seconds: 5));
-    }
+  // 2. Continuous 3-second automatic refresh
+  await for (final _ in Stream.periodic(const Duration(seconds: 3))) {
+    yield await fetchCount();
   }
 });
 

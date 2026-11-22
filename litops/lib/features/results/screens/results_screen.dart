@@ -7,22 +7,30 @@ import '../../../core/enums/enums.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
+import '../../../core/providers/auto_refresh_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/utils/app_utils.dart';
 
-final completedEventsProvider = StreamProvider<List<Event>>((ref) {
-  return SupabaseConfig.client
-      .from(SupabaseTables.events)
-      .stream(primaryKey: ['id'])
-      .order('updated_at', ascending: false)
-      .handleError((e) => debugPrint('completedEvents stream error: $e'))
-      .map((data) {
-        final events = data.map((e) => Event.fromJson(e)).toList();
-        return events.where((e) {
-          return [EventStatus.completed, EventStatus.resultsPublished].contains(e.status);
-        }).toList();
-      });
+final completedEventsProvider = StreamProvider<List<Event>>((ref) async* {
+  Future<List<Event>> fetchCompleted() async {
+    try {
+      final res = await SupabaseConfig.client
+          .from(SupabaseTables.events)
+          .select()
+          .inFilter('status', [EventStatus.completed.value, EventStatus.resultsPublished.value])
+          .order('updated_at', ascending: false);
+      return (res as List).map((e) => Event.fromJson(e)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  yield await fetchCompleted();
+
+  await for (final _ in Stream.periodic(const Duration(seconds: 4))) {
+    yield await fetchCompleted();
+  }
 });
 
 final eventResultsProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, eventId) {
@@ -37,8 +45,8 @@ final eventResultsProvider = StreamProvider.family<List<Map<String, dynamic>>, S
 });
 
 final eventResultsWithDetailsProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, eventId) async {
-  // Watch the stream to re-trigger fetching when results change
-
+  // Auto-refresh results with details
+  ref.watch(autoRefreshProvider);
   ref.watch(eventResultsProvider(eventId));
   
   // Fetch the results with related data
