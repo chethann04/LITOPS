@@ -7,7 +7,6 @@ import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../auth/providers/auth_settings_provider.dart';
 import '../../students/providers/student_providers.dart';
-import '../../../core/providers/auto_refresh_provider.dart';
 
 // Providers for reading data
 final pendingProfilesProvider = FutureProvider<List<Profile>>((ref) async {
@@ -93,72 +92,72 @@ final activeYearlyArchiveProvider = FutureProvider<YearlyArchive?>((ref) async {
   return YearlyArchive.fromJson(data);
 });
 
-final _pointsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.eventPoints).stream(primaryKey: ['id']).handleError((e) {}));
-final _resultsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.results).stream(primaryKey: ['id']).handleError((e) {}));
-final _registrationsStream = StreamProvider((ref) => SupabaseConfig.client.from(SupabaseTables.registrations).stream(primaryKey: ['id']).handleError((e) {}));
-
-final departmentRankingsProvider = FutureProvider<List<DepartmentRanking>>((ref) async {
-  // Auto-refresh department rankings
-  ref.watch(autoRefreshProvider);
-  ref.watch(_pointsStream);
-
-  final allDepartments = [
-    'CS', 'IS', 'CI', 'CB', 'RI', 'EC', 'VL', 'EI', 'EE', 'CV', 'ME'
-  ];
-  
-  try {
-    // 1. Fetch all event points (single source of truth)
-    final pointsData = await SupabaseConfig.client
-        .from(SupabaseTables.eventPoints)
-        .select();
-    final manualPoints = (pointsData as List).map((e) => EventPoint.fromJson(e)).toList();
-
-    // 2. Group and sum by branch - initialize ALL departments with 0
-    final Map<String, Map<String, dynamic>> branchStats = {};
-    for (final dept in allDepartments) {
-      branchStats[dept] = {'points': 0, 'wins': 0, 'runnerUps': 0, 'secondRunnerUps': 0};
-    }
+final departmentRankingsProvider = StreamProvider<List<DepartmentRanking>>((ref) async* {
+  Future<List<DepartmentRanking>> fetchRankings() async {
+    final allDepartments = [
+      'CS', 'IS', 'CI', 'CB', 'RI', 'EC', 'VL', 'EI', 'EE', 'CV', 'ME'
+    ];
     
-    void addPoints(String branch, int points, {bool isWin = false, bool isRunner = false, bool isSecondRunner = false}) {
-      final b = branch.toUpperCase();
-      if (!branchStats.containsKey(b)) return; // Skip if not in allDepartments
-      branchStats[b]!['points'] += points;
-      if (isWin) branchStats[b]!['wins'] += 1;
-      if (isRunner) branchStats[b]!['runnerUps'] += 1;
-      if (isSecondRunner) branchStats[b]!['secondRunnerUps'] += 1;
+    try {
+      final pointsData = await SupabaseConfig.client
+          .from(SupabaseTables.eventPoints)
+          .select();
+      final manualPoints = (pointsData as List).map((e) => EventPoint.fromJson(e)).toList();
+
+      final Map<String, Map<String, dynamic>> branchStats = {};
+      for (final dept in allDepartments) {
+        branchStats[dept] = {'points': 0, 'wins': 0, 'runnerUps': 0, 'secondRunnerUps': 0};
+      }
+      
+      void addPoints(String branch, int points, {bool isWin = false, bool isRunner = false, bool isSecondRunner = false}) {
+        final b = branch.toUpperCase();
+        if (!branchStats.containsKey(b)) return;
+        branchStats[b]!['points'] += points;
+        if (isWin) branchStats[b]!['wins'] += 1;
+        if (isRunner) branchStats[b]!['runnerUps'] += 1;
+        if (isSecondRunner) branchStats[b]!['secondRunnerUps'] += 1;
+      }
+
+      for (var p in manualPoints) {
+        addPoints(p.branch, p.points, 
+          isWin: p.position == ResultPosition.winner,
+          isRunner: p.position == ResultPosition.runnerUp,
+          isSecondRunner: p.position == ResultPosition.secondRunnerUp);
+      }
+
+      final List<DepartmentRanking> rankings = branchStats.entries.map((entry) {
+        return DepartmentRanking(
+          id: entry.key,
+          festYear: 2024,
+          branch: entry.key,
+          totalPoints: entry.value['points'],
+          totalWins: entry.value['wins'],
+          totalRunnerUps: entry.value['runnerUps'],
+          totalSecondRunnerUps: entry.value['secondRunnerUps'],
+          lastCalculatedAt: DateTime.now(),
+        );
+      }).toList();
+
+      rankings.sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
+      return rankings;
+    } catch (e) {
+      debugPrint('Error calculating live rankings: $e');
+      try {
+        final data = await SupabaseConfig.client
+            .from(SupabaseTables.departmentRankings)
+            .select()
+            .order('total_points', ascending: false);
+        return (data as List).map((e) => DepartmentRanking.fromJson(e)).toList();
+      } catch (_) {
+        return [];
+      }
     }
+  }
 
-    // Process all event points
-    for (var p in manualPoints) {
-      addPoints(p.branch, p.points, 
-        isWin: p.position == ResultPosition.winner,
-        isRunner: p.position == ResultPosition.runnerUp,
-        isSecondRunner: p.position == ResultPosition.secondRunnerUp);
-    }
+  yield await fetchRankings();
 
-    // 3. Convert to DepartmentRanking list and sort
-    final List<DepartmentRanking> rankings = branchStats.entries.map((entry) {
-      return DepartmentRanking(
-        id: entry.key,
-        festYear: 2024,
-        branch: entry.key,
-        totalPoints: entry.value['points'],
-        totalWins: entry.value['wins'],
-        totalRunnerUps: entry.value['runnerUps'],
-        totalSecondRunnerUps: entry.value['secondRunnerUps'],
-        lastCalculatedAt: DateTime.now(),
-      );
-    }).toList();
-
-    rankings.sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
-    return rankings;
-  } catch (e) {
-    debugPrint('Error calculating live rankings: $e');
-    final data = await SupabaseConfig.client
-        .from(SupabaseTables.departmentRankings)
-        .select()
-        .order('total_points', ascending: false);
-    return (data as List).map((e) => DepartmentRanking.fromJson(e)).toList();
+  await for (final _ in Stream.periodic(const Duration(seconds: 5))) {
+    yield await fetchRankings();
   }
 });
 

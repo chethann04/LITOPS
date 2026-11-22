@@ -2,46 +2,52 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/enums/enums.dart';
-import '../../../core/providers/auto_refresh_provider.dart';
 
-final analyticsSummaryProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  // Auto-refresh analytics stats every 3 seconds
-  ref.watch(autoRefreshProvider);
-  
-  final client = SupabaseConfig.client;
-  
-  // Total Registrations
-  final regsRes = await client
-      .from(SupabaseTables.registrations)
-      .select('id')
-      .eq('is_cancelled', false);
-  final totalRegistrations = (regsRes as List).length;
+final analyticsSummaryProvider = StreamProvider<Map<String, dynamic>>((ref) async* {
+  Future<Map<String, dynamic>> fetchSummary() async {
+    final client = SupabaseConfig.client;
+    try {
+      final regsRes = await client
+          .from(SupabaseTables.registrations)
+          .select('id')
+          .eq('is_cancelled', false);
+      final totalRegistrations = (regsRes as List).length;
 
-  // Total Events
-  final eventsRes = await client
-      .from(SupabaseTables.events)
-      .select('id');
-  final totalEvents = (eventsRes as List).length;
+      final eventsRes = await client
+          .from(SupabaseTables.events)
+          .select('id');
+      final totalEvents = (eventsRes as List).length;
 
-  // Total Attendance
-  final attendanceRes = await client
-      .from(SupabaseTables.attendance)
-      .select('id');
-  final totalAttendance = (attendanceRes as List).length;
+      final attendanceRes = await client
+          .from(SupabaseTables.attendance)
+          .select('id');
+      final totalAttendance = (attendanceRes as List).length;
 
-  return {
-    'totalRegistrations': totalRegistrations,
-    'totalEvents': totalEvents,
-    'totalAttendance': totalAttendance,
-    'attendanceRate': totalRegistrations > 0 
-        ? (totalAttendance / totalRegistrations * 100).toStringAsFixed(1)
-        : '0',
-  };
+      return {
+        'totalRegistrations': totalRegistrations,
+        'totalEvents': totalEvents,
+        'totalAttendance': totalAttendance,
+        'attendanceRate': totalRegistrations > 0 
+            ? (totalAttendance / totalRegistrations * 100).toStringAsFixed(1)
+            : '0',
+      };
+    } catch (_) {
+      return {
+        'totalRegistrations': 0,
+        'totalEvents': 0,
+        'totalAttendance': 0,
+        'attendanceRate': '0',
+      };
+    }
+  }
+
+  yield await fetchSummary();
+  await for (final _ in Stream.periodic(const Duration(seconds: 6))) {
+    yield await fetchSummary();
+  }
 });
 
 final categoryParticipationProvider = FutureProvider<Map<EventCategory, int>>((ref) async {
-  ref.watch(autoRefreshProvider);
-  
   final client = SupabaseConfig.client;
   
   // Fetch registrations with event categories
@@ -63,8 +69,6 @@ final categoryParticipationProvider = FutureProvider<Map<EventCategory, int>>((r
 });
 
 final registrationTrendProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  ref.watch(autoRefreshProvider);
-  
   final client = SupabaseConfig.client;
   
   // Fetch registration dates
@@ -99,8 +103,6 @@ final registrationTrendProvider = FutureProvider<List<Map<String, dynamic>>>((re
 });
 
 final branchParticipationProvider = FutureProvider<Map<String, int>>((ref) async {
-  ref.watch(autoRefreshProvider);
-  
   final client = SupabaseConfig.client;
   
   final response = await client

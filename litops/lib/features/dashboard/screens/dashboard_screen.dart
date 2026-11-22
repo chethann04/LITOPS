@@ -210,9 +210,9 @@ class DashboardScreen extends ConsumerWidget {
                   _FadeIn(delay: 400, child: _buildServicesGrid(context, roleConfig, ref)),
                   SizedBox(height: context.r.h(24)),
                   if (roleConfig.showRulebookCard) ...[
-                    _FadeIn(delay: 500, child: _buildRulebookCard(context, ref.watch(rulebookStreamProvider))),
+                    _buildRulebookCard(context, ref.watch(rulebookStreamProvider)),
                   ] else ...[
-                    _FadeIn(delay: 500, child: const LiveRankingsWidget()),
+                    const LiveRankingsWidget(),
                   ],
                   SizedBox(height: context.r.listBottomPadding),
                 ],
@@ -373,9 +373,9 @@ class DashboardScreen extends ConsumerWidget {
                   _FadeIn(delay: 600, child: _buildNonAdminServicesGrid(context, roleConfig, ref)),
                   SizedBox(height: r.h(24)),
                   if (roleConfig.showRulebookCard) ...[
-                    _FadeIn(delay: 700, child: _buildRulebookCard(context, ref.watch(rulebookStreamProvider))),
+                    _buildRulebookCard(context, ref.watch(rulebookStreamProvider)),
                   ] else ...[
-                    _FadeIn(delay: 700, child: const LiveRankingsWidget()),
+                    const LiveRankingsWidget(),
                   ],
                   SizedBox(height: r.listBottomPadding),
                 ],
@@ -1018,6 +1018,8 @@ class LiveRankingsWidget extends ConsumerWidget {
           ),
           SizedBox(height: r.h(12)),
           rankingsAsync.when(
+            skipLoadingOnReload: true,
+            skipLoadingOnRefresh: true,
             data: (rankings) {
               if (rankings.isEmpty) {
                 return Text(
