@@ -546,6 +546,39 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                             fontSize: context.r.sp(10),
                           ),
                         ),
+                      ] else if (isOngoing || currentStatus == EventStatus.completed || currentStatus == EventStatus.resultsPublished) ...[
+                        if (roleConfig.canManageResults || roleConfig.canManageEvents) ...[
+                          ClayButton(
+                            onPressed: () => context.push('/results/score/$eventId'),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.emoji_events, size: context.r.icon(18), color: Colors.white),
+                                SizedBox(width: context.r.w(8)),
+                                Text(
+                                  currentStatus == EventStatus.resultsPublished
+                                      ? 'Edit & Re-Publish Results'
+                                      : 'Publish Results',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: context.r.sp(13.5),
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: context.r.h(6)),
+                          Text(
+                            currentStatus == EventStatus.resultsPublished
+                                ? 'Results published · Tap to edit positions or points'
+                                : 'Event active · Assign 1st, 2nd, 3rd, or custom positions to publish',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: currentStatus == EventStatus.resultsPublished ? LitColors.moss : LitColors.ash,
+                              fontSize: context.r.sp(10),
+                            ),
+                          ),
+                        ],
                       ],
                     ],
                   ),

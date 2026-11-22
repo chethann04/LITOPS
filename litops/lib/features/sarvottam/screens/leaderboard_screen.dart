@@ -109,10 +109,10 @@ final leaderboardProvider = StreamProvider<List<DepartmentResult>>((ref) async* 
         eventMap[id] = name;
       }
 
-      // Fetch all results for these published events (including registrations and student_master)
+      // Fetch all results for these published events (including score, registrations and student_master)
       final resultsData = await SupabaseConfig.client
           .from(SupabaseTables.results)
-          .select('event_id, position, registrations!inner(student_master(branch))')
+          .select('event_id, position, score, registrations!inner(student_master(branch))')
           .inFilter('event_id', publishedEventIds);
 
       final departmentData = <String, Map<String, dynamic>>{};
@@ -143,10 +143,18 @@ final leaderboardProvider = StreamProvider<List<DepartmentResult>>((ref) async* 
         if (position == null) continue;
 
         int pointsVal = 0;
-        if (position == 'winner') pointsVal = 10;
-        else if (position == 'runner_up') pointsVal = 7;
-        else if (position == 'second_runner_up') pointsVal = 5;
-        else if (position == 'participation') pointsVal = 1;
+        final customScore = row['score'];
+        if (customScore != null) {
+          pointsVal = (customScore as num).toInt();
+        } else if (position == 'winner') {
+          pointsVal = 10;
+        } else if (position == 'runner_up') {
+          pointsVal = 7;
+        } else if (position == 'second_runner_up') {
+          pointsVal = 5;
+        } else if (position == 'participation') {
+          pointsVal = 1;
+        }
 
         // Update total branch points
         departmentData[branch]!['totalPoints'] = (departmentData[branch]!['totalPoints'] as int) + pointsVal;

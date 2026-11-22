@@ -51,8 +51,6 @@ import '../../features/scheduling/screens/event_scheduling_screen.dart';
 import '../../features/admin/screens/rulebook_management_screen.dart';
 import '../../features/admin/screens/auth_control_screen.dart';
 import '../../features/dashboard/screens/rulebook_viewer_screen.dart';
-import '../../core/enums/enums.dart';
-import '../../core/config/role_config.dart';
 
 bool debugBypassIncompleteCheck = false;
 

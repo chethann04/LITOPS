@@ -1,24 +1,69 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/enums/enums.dart';
 import '../../../core/models/models.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
+import '../../../core/utils/responsive.dart';
+import '../../../core/utils/app_utils.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../events/screens/event_detail_screen.dart';
+import '../../events/screens/events_screen.dart';
 import '../../sarvottam/screens/leaderboard_screen.dart';
+import 'results_screen.dart';
+
+/// Represents a candidate (individual student or team) eligible for a position.
+class CandidateItem {
+  final String registrationId;
+  final String? teamId;
+  final String title;
+  final String subtitle;
+  final String? branch;
+  final String? usn;
+
+  const CandidateItem({
+    required this.registrationId,
+    this.teamId,
+    required this.title,
+    required this.subtitle,
+    this.branch,
+    this.usn,
+  });
+}
+
+/// Dynamic position assignment entry.
+class PositionEntry {
+  final String id;
+  String positionName;
+  String positionKey;
+  final int defaultPoints;
+  String? selectedRegistrationId;
+  final TextEditingController pointsController;
+
+  PositionEntry({
+    required this.id,
+    required this.positionName,
+    required this.positionKey,
+    required this.defaultPoints,
+    this.selectedRegistrationId,
+    int? initialPoints,
+  }) : pointsController = TextEditingController(text: (initialPoints ?? defaultPoints).toString());
+}
 
 class ScoreEntryScreen extends ConsumerStatefulWidget {
   final String eventId;
   const ScoreEntryScreen({super.key, required this.eventId});
+
   @override
   ConsumerState<ScoreEntryScreen> createState() => _ScoreEntryScreenState();
 }
 
 class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
   Event? _event;
-  List<Map<String, dynamic>> _registrations = [];
-  final Map<String, ResultPosition?> _positions = {};
+  List<CandidateItem> _candidates = [];
+  final List<PositionEntry> _positionEntries = [];
   bool _loading = false;
   bool _saving = false;
 
@@ -28,272 +73,1073 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
     _loadEventAndRegistrations();
   }
 
+  @override
+  void dispose() {
+    for (final entry in _positionEntries) {
+      entry.pointsController.dispose();
+    }
+    super.dispose();
+  }
+
   Future<void> _loadEventAndRegistrations() async {
     setState(() => _loading = true);
     try {
-      // Load event
+      // 1. Load event
       final eventData = await SupabaseConfig.client
           .from(SupabaseTables.events)
           .select()
           .eq('id', widget.eventId)
           .single();
-      setState(() => _event = Event.fromJson(eventData));
+      _event = Event.fromJson(eventData);
 
-      // Load registrations
+      // 2. Load registrations
       final regData = await SupabaseConfig.client
           .from(SupabaseTables.registrations)
           .select('id, student_id, team_id, student_master(id, name, usn, branch), teams(id, team_name)')
           .eq('event_id', widget.eventId)
           .eq('is_cancelled', false);
 
-      setState(() {
-        _registrations = List<Map<String, dynamic>>.from(regData as List);
-        for (final reg in _registrations) {
-          _positions[reg['id']] = null;
+      final rawList = List<Map<String, dynamic>>.from(regData as List);
+      final candidates = <CandidateItem>[];
+      final seenTeams = <String>{};
+
+      for (final reg in rawList) {
+        final team = reg['teams'] as Map<String, dynamic>?;
+        final student = reg['student_master'] as Map<String, dynamic>?;
+        final teamId = reg['team_id'] as String?;
+
+        if (teamId != null && team != null) {
+          if (!seenTeams.contains(teamId)) {
+            seenTeams.add(teamId);
+            final teamName = team['team_name'] as String? ?? 'Team';
+            final branch = student?['branch'] as String?;
+            final usn = student?['usn'] as String?;
+            candidates.add(CandidateItem(
+              registrationId: reg['id'] as String,
+              teamId: teamId,
+              title: teamName,
+              subtitle: 'Team • ${student?['name'] ?? ''} (${branch ?? 'General'})',
+              branch: branch,
+              usn: usn,
+            ));
+          }
+        } else {
+          final name = student?['name'] as String? ?? 'Student';
+          final usn = student?['usn'] as String? ?? '';
+          final branch = student?['branch'] as String?;
+          candidates.add(CandidateItem(
+            registrationId: reg['id'] as String,
+            teamId: null,
+            title: name,
+            subtitle: '$usn • Branch: ${branch ?? 'N/A'}',
+            branch: branch,
+            usn: usn,
+          ));
         }
-      });
+      }
+
+      _candidates = candidates;
+
+      // 3. Load existing results if already published/saved
+      final existingResults = await SupabaseConfig.client
+          .from(SupabaseTables.results)
+          .select('id, registration_id, team_id, position, score, remarks')
+          .eq('event_id', widget.eventId)
+          .order('created_at', ascending: true);
+
+      final existingList = List<Map<String, dynamic>>.from(existingResults as List);
+
+      _positionEntries.clear();
+      if (existingList.isNotEmpty) {
+        for (int i = 0; i < existingList.length; i++) {
+          final res = existingList[i];
+          final posKey = res['position'] as String? ?? 'winner';
+          final scoreNum = res['score'] as num?;
+          final pts = scoreNum?.toInt() ?? _getDefaultPointsForIndex(i);
+          final title = res['remarks'] as String? ?? _getDefaultTitleForIndex(i);
+
+          _positionEntries.add(PositionEntry(
+            id: 'pos_${DateTime.now().millisecondsSinceEpoch}_$i',
+            positionName: title,
+            positionKey: posKey,
+            defaultPoints: pts,
+            initialPoints: pts,
+            selectedRegistrationId: res['registration_id'] as String?,
+          ));
+        }
+      } else {
+        // Default starting template: 1st, 2nd, 3rd (User can remove or add more)
+        _positionEntries.addAll([
+          PositionEntry(
+            id: 'pos_1',
+            positionName: '1st Place (Winner)',
+            positionKey: 'winner',
+            defaultPoints: 10,
+          ),
+          PositionEntry(
+            id: 'pos_2',
+            positionName: '2nd Place (Runner-Up)',
+            positionKey: 'runner_up',
+            defaultPoints: 7,
+          ),
+          PositionEntry(
+            id: 'pos_3',
+            positionName: '3rd Place (Second Runner-Up)',
+            positionKey: 'second_runner_up',
+            defaultPoints: 5,
+          ),
+        ]);
+      }
     } catch (e) {
-      debugPrint('Error loading: $e');
+      debugPrint('Error loading event and registrations: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading data: $e')),
         );
       }
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
-  Future<void> _publishResults() async {
-    // First check: at least one position selected
-    final hasAnyPosition = _positions.values.any((p) => p != null);
-    if (!hasAnyPosition) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select at least one position (Winner/Runner-Up) before publishing!'),
-            backgroundColor: Colors.amber,
-          ),
+  int _getDefaultPointsForIndex(int index) {
+    switch (index) {
+      case 0:
+        return 10;
+      case 1:
+        return 7;
+      case 2:
+        return 5;
+      default:
+        return 3;
+    }
+  }
+
+  String _getDefaultTitleForIndex(int index) {
+    switch (index) {
+      case 0:
+        return '1st Place (Winner)';
+      case 1:
+        return '2nd Place (Runner-Up)';
+      case 2:
+        return '3rd Place (Second Runner-Up)';
+      case 3:
+        return '4th Place';
+      case 4:
+        return '5th Place';
+      default:
+        return '${index + 1}th Place';
+    }
+  }
+
+  String _getDefaultKeyForIndex(int index) {
+    switch (index) {
+      case 0:
+        return 'winner';
+      case 1:
+        return 'runner_up';
+      case 2:
+        return 'second_runner_up';
+      default:
+        return 'second_runner_up';
+    }
+  }
+
+  void _addPosition() {
+    final nextIndex = _positionEntries.length;
+    final newEntry = PositionEntry(
+      id: 'pos_${DateTime.now().millisecondsSinceEpoch}',
+      positionName: _getDefaultTitleForIndex(nextIndex),
+      positionKey: _getDefaultKeyForIndex(nextIndex),
+      defaultPoints: _getDefaultPointsForIndex(nextIndex),
+    );
+    setState(() {
+      _positionEntries.add(newEntry);
+    });
+  }
+
+  void _removePosition(int index) {
+    setState(() {
+      final removed = _positionEntries.removeAt(index);
+      removed.pointsController.dispose();
+    });
+  }
+
+  Future<void> _showCandidatePicker(PositionEntry entry) async {
+    final searchController = TextEditingController();
+    List<CandidateItem> filteredCandidates = List.from(_candidates);
+
+    await showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final r = Responsive(context);
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.75,
+              padding: EdgeInsets.fromLTRB(r.w(16), r.h(16), r.w(16), r.h(16) + r.bottomSafeArea),
+              decoration: BoxDecoration(
+                color: const Color(0xFF161312),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(r.radius(24))),
+                border: const Border(
+                  top: BorderSide(color: Color(0xFF2B2624), width: 1.5),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: r.w(40),
+                      height: r.h(4),
+                      margin: EdgeInsets.only(bottom: r.h(14)),
+                      decoration: BoxDecoration(
+                        color: LitColors.ash.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(r.radius(2)),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Select ${entry.positionName}',
+                        style: GoogleFonts.fredoka(
+                          color: LitColors.bone,
+                          fontSize: r.sp(16),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: LitColors.ash),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: r.h(10)),
+                  TextField(
+                    controller: searchController,
+                    style: const TextStyle(color: LitColors.bone),
+                    decoration: InputDecoration(
+                      hintText: 'Search by name, USN, or branch...',
+                      hintStyle: const TextStyle(color: LitColors.ash, fontSize: 13),
+                      prefixIcon: const Icon(Icons.search, color: LitColors.ash, size: 20),
+                      filled: true,
+                      fillColor: const Color(0xFF1E1A18),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFF2E2927)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFF2E2927)),
+                      ),
+                    ),
+                    onChanged: (query) {
+                      final q = query.trim().toLowerCase();
+                      setModalState(() {
+                        if (q.isEmpty) {
+                          filteredCandidates = List.from(_candidates);
+                        } else {
+                          filteredCandidates = _candidates.where((c) {
+                            return c.title.toLowerCase().contains(q) ||
+                                (c.usn?.toLowerCase().contains(q) ?? false) ||
+                                (c.branch?.toLowerCase().contains(q) ?? false) ||
+                                c.subtitle.toLowerCase().contains(q);
+                          }).toList();
+                        }
+                      });
+                    },
+                  ),
+                  SizedBox(height: r.h(12)),
+                  Expanded(
+                    child: filteredCandidates.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No registered participants found',
+                              style: GoogleFonts.plusJakartaSans(color: LitColors.ash),
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: filteredCandidates.length,
+                            separatorBuilder: (_, __) => const Divider(color: Color(0xFF24201E), height: 1),
+                            itemBuilder: (ctx, i) {
+                              final candidate = filteredCandidates[i];
+                              final isSelected = entry.selectedRegistrationId == candidate.registrationId;
+
+                              // Check if selected by another position
+                              final usedByOther = _positionEntries.any(
+                                (p) => p.id != entry.id && p.selectedRegistrationId == candidate.registrationId,
+                              );
+
+                              return ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.symmetric(horizontal: r.w(8), vertical: r.h(2)),
+                                leading: CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: isSelected
+                                      ? LitColors.ember.withValues(alpha: 0.25)
+                                      : const Color(0xFF26211F),
+                                  child: Icon(
+                                    candidate.teamId != null ? Icons.group : Icons.person,
+                                    size: 18,
+                                    color: isSelected ? LitColors.ember : LitColors.ash,
+                                  ),
+                                ),
+                                title: Text(
+                                  candidate.title,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: isSelected ? LitColors.ember : LitColors.bone,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                    fontSize: r.sp(13),
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  candidate.subtitle,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: LitColors.ash,
+                                    fontSize: r.sp(11),
+                                  ),
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (candidate.branch != null)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        margin: const EdgeInsets.only(right: 6),
+                                        decoration: BoxDecoration(
+                                          color: LitColors.clay2,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          candidate.branch!,
+                                          style: GoogleFonts.jetBrainsMono(
+                                            color: LitColors.bone,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ),
+                                    if (usedByOther)
+                                      Text(
+                                        '(Assigned)',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          color: LitColors.amber,
+                                          fontSize: 10,
+                                        ),
+                                      )
+                                    else if (isSelected)
+                                      const Icon(Icons.check_circle, color: LitColors.moss, size: 20),
+                                  ],
+                                ),
+                                onTap: () {
+                                  setState(() {
+                                    entry.selectedRegistrationId = candidate.registrationId;
+                                  });
+                                  Navigator.pop(ctx);
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
-      }
+      },
+    );
+  }
+
+  Future<void> _publishResults() async {
+    if (_positionEntries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please add at least one position (Winner/Runner-up) before publishing!'),
+          backgroundColor: Colors.amber,
+        ),
+      );
       return;
     }
 
+    // Check each position has a selected candidate
+    for (final pos in _positionEntries) {
+      if (pos.selectedRegistrationId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please select a participant for "${pos.positionName}" or remove it.'),
+            backgroundColor: Colors.amber,
+          ),
+        );
+        return;
+      }
+
+      final pts = int.tryParse(pos.pointsController.text.trim());
+      if (pts == null || pts < 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please enter valid points (>= 0) for "${pos.positionName}".'),
+            backgroundColor: Colors.amber,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Check duplicate assignment
+    final assignedIds = _positionEntries.map((p) => p.selectedRegistrationId!).toList();
+    final uniqueIds = assignedIds.toSet();
+    if (uniqueIds.length != assignedIds.length) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('The same participant cannot be assigned to multiple positions!'),
+          backgroundColor: Colors.amber,
+        ),
+      );
+      return;
+    }
+
+    // Confirm dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1D1A18),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF2C2725)),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.emoji_events, color: LitColors.amber, size: 22),
+            const SizedBox(width: 8),
+            Text(
+              'Publish Results?',
+              style: GoogleFonts.fredoka(color: LitColors.bone, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Text(
+          'This will publish ${_positionEntries.length} position(s) for "${_event?.name ?? 'Event'}", update the event status to Results Published, and credit Sarvottam Leaderboard points.',
+          style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: LitColors.ash)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: LitColors.ember,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Publish Now',
+              style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
     setState(() => _saving = true);
     final profile = ref.read(currentProfileProvider);
-    try {
-      // Delete existing results for this event first
-      await SupabaseConfig.client.from(SupabaseTables.results).delete().eq('event_id', widget.eventId);
-      // Delete existing event points for this event
-      await SupabaseConfig.client.from(SupabaseTables.eventPoints).delete().eq('event_id', widget.eventId);
-      
-      int insertedCount = 0;
-      // Insert new results
-      for (final reg in _registrations) {
-        final position = _positions[reg['id']];
-        if (position != null) {
-          debugPrint('Inserting result for reg ${reg['id']}: ${position.label}');
-          await SupabaseConfig.client.from(SupabaseTables.results).insert({
-            'event_id': widget.eventId,
-            'registration_id': reg['id'],
-            'team_id': reg['team_id'],
-            'position': position.value,
-            'score': null,
-            'published_at': DateTime.now().toIso8601String(),
-            'published_by': profile!.id,
-          });
-          insertedCount++;
 
-          // Insert Sarvottam point (only per branch/registration, no student tracking)
-          final student = reg['student_master'] as Map<String, dynamic>?;
-          final team = reg['teams'] as Map<String, dynamic>?;
-          
-          String? branch;
-          if (student != null) {
-            branch = student['branch'] as String?;
-          }
-          
-          if (branch == null && team != null) {
-            // For team events, get branch from one of team members if needed, but for now assume student master exists for at least one
-          }
-          
-          if (branch != null) {
-            await SupabaseConfig.client.from(SupabaseTables.eventPoints).insert({
-              'event_id': widget.eventId,
-              'branch': branch,
-              'student_id': null, // No individual student tracking
-              'team_id': reg['team_id'],
-              'points': position.points,
-              'reason': 'Event result - ${position.label}',
-              'position': position.value,
-              'allocated_by': profile.id,
-            });
-          }
+    try {
+      // 1. Delete existing results & points for this event
+      await SupabaseConfig.client
+          .from(SupabaseTables.results)
+          .delete()
+          .eq('event_id', widget.eventId);
+
+      await SupabaseConfig.client
+          .from(SupabaseTables.eventPoints)
+          .delete()
+          .eq('event_id', widget.eventId);
+
+      int insertedCount = 0;
+
+      // 2. Insert new results and points
+      for (final entry in _positionEntries) {
+        final candidate = _candidates.firstWhere(
+          (c) => c.registrationId == entry.selectedRegistrationId,
+        );
+
+        final points = int.tryParse(entry.pointsController.text.trim()) ?? entry.defaultPoints;
+
+        // Insert into results table
+        await SupabaseConfig.client.from(SupabaseTables.results).insert({
+          'event_id': widget.eventId,
+          'registration_id': candidate.registrationId,
+          'team_id': candidate.teamId,
+          'position': entry.positionKey,
+          'score': points,
+          'remarks': entry.positionName,
+          'published_at': DateTime.now().toIso8601String(),
+          'published_by': profile?.id,
+        });
+        insertedCount++;
+
+        // Insert into event_points table for leaderboard aggregation
+        if (candidate.branch != null) {
+          final officialBranch = AppUtils.mapUsnBranchToOfficial(candidate.branch!);
+          await SupabaseConfig.client.from(SupabaseTables.eventPoints).insert({
+            'event_id': widget.eventId,
+            'branch': officialBranch,
+            'student_id': null,
+            'team_id': candidate.teamId,
+            'points': points,
+            'reason': '${_event?.name ?? "Event"} - ${entry.positionName}',
+            'position': entry.positionKey,
+            'allocated_by': profile?.id,
+          });
         }
       }
 
-      debugPrint('Inserted $insertedCount results');
+      // 3. Update Event Status to results_published
+      bool statusUpdatedViaRpc = false;
+      try {
+        await SupabaseConfig.client.rpc(
+          'update_event_status',
+          params: {
+            'p_event_id': widget.eventId,
+            'p_status': EventStatus.resultsPublished.value,
+          },
+        );
+        statusUpdatedViaRpc = true;
+      } catch (rpcErr) {
+        debugPrint('⚠️ update_event_status RPC fallback: $rpcErr');
+      }
 
-      // Update event status and updated_at
-      await SupabaseConfig.client.from(SupabaseTables.events).update({
-        'status': EventStatus.resultsPublished.value,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', widget.eventId);
+      if (!statusUpdatedViaRpc) {
+        await SupabaseConfig.client
+            .from(SupabaseTables.events)
+            .update({
+              'status': EventStatus.resultsPublished.value,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', widget.eventId);
+      }
 
-      // Refresh leaderboard
+      // 4. Invalidate all relevant providers for real-time app-wide synchronization
+      ref.invalidate(eventDetailProvider(widget.eventId));
+      ref.invalidate(eventsListProvider);
       ref.invalidate(leaderboardProvider);
+      ref.invalidate(publishedEventsProvider);
+      ref.invalidate(eventResultsProvider(widget.eventId));
+      ref.invalidate(eventResultsWithDetailsProvider(widget.eventId));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Successfully published $insertedCount results!')),
+          SnackBar(
+            content: Text('🎉 Published $insertedCount position(s)! Leaderboard updated.'),
+            backgroundColor: LitColors.moss,
+          ),
         );
         Navigator.pop(context);
       }
     } catch (e, stackTrace) {
-      debugPrint('Error publishing: $e');
+      debugPrint('Error publishing results: $e');
       debugPrintStack(stackTrace: stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error publishing: $e')),
+          SnackBar(
+            content: Text('Error publishing results: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
         );
       }
     } finally {
-      setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
+  }
+
+  Widget _buildMedalBadge(int index, Responsive r) {
+    String medal = '🏅';
+    Color medalColor = LitColors.amber;
+    if (index == 0) {
+      medal = '🥇';
+      medalColor = const Color(0xFFFFD700);
+    } else if (index == 1) {
+      medal = '🥈';
+      medalColor = const Color(0xFFC0C0C0);
+    } else if (index == 2) {
+      medal = '🥉';
+      medalColor = const Color(0xFFCD7F32);
+    }
+
+    return Container(
+      width: r.w(36),
+      height: r.w(36),
+      decoration: BoxDecoration(
+        color: medalColor.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+        border: Border.all(color: medalColor.withValues(alpha: 0.35), width: 1.2),
+      ),
+      child: Center(
+        child: Text(medal, style: TextStyle(fontSize: r.sp(18))),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final role = ref.watch(currentUserRoleProvider);
+    final r = Responsive(context);
+
     if (!role.canManageResults) {
       return Scaffold(
         backgroundColor: const Color(0xFF0A0A0A),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFFF3ECE2)),
+            icon: const Icon(Icons.arrow_back, color: LitColors.bone),
             onPressed: () => Navigator.pop(context),
           ),
-          title: const Text('Access Denied', style: TextStyle(color: Color(0xFFF3ECE2), fontWeight: FontWeight.bold)),
+          title: const Text('Access Denied', style: TextStyle(color: LitColors.bone, fontWeight: FontWeight.bold)),
         ),
         body: const Center(
           child: EmptyView(
             icon: Icons.lock_outline,
             title: 'Not Authorized',
-            subtitle: 'You don\'t have permission to publish results.',
+            subtitle: 'You do not have permission to publish or edit results.',
           ),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
+      backgroundColor: const Color(0xFF0E0C0B),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFF141110),
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFF3ECE2)),
+          icon: const Icon(Icons.arrow_back, color: LitColors.bone),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          _event?.name ?? 'Result Entry',
-          style: const TextStyle(color: Color(0xFFF3ECE2), fontWeight: FontWeight.bold),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _event?.name ?? 'Result Entry',
+              style: GoogleFonts.fredoka(
+                color: LitColors.bone,
+                fontWeight: FontWeight.bold,
+                fontSize: r.sp(16),
+              ),
+            ),
+            Text(
+              'Assign positions & points',
+              style: GoogleFonts.plusJakartaSans(
+                color: LitColors.ash,
+                fontSize: r.sp(11),
+              ),
+            ),
+          ],
         ),
         actions: [
-          if (_registrations.isNotEmpty)
-            TextButton(
-              onPressed: _saving ? null : _publishResults,
-              child: const Text('Publish', style: TextStyle(color: Color(0xFFFF6A2C), fontWeight: FontWeight.bold)),
+          if (!_loading && _positionEntries.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(right: r.w(8)),
+              child: ElevatedButton.icon(
+                onPressed: _saving ? null : _publishResults,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.send_rounded, size: 14, color: Colors.white),
+                label: Text(
+                  _saving ? 'Publishing...' : 'Publish',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.bold,
+                    fontSize: r.sp(12),
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: LitColors.ember,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(8)),
+                ),
+              ),
             ),
         ],
       ),
       body: _loading
           ? const LoadingView()
-          : _registrations.isEmpty
-              ? const EmptyView(icon: Icons.people_outline, title: 'No registrations')
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _registrations.length,
-                  itemBuilder: (ctx, i) {
-                    final reg = _registrations[i];
-                    final student = reg['student_master'] as Map<String, dynamic>?;
-                    final team = reg['teams'] as Map<String, dynamic>?;
-                    final displayName = team != null
-                        ? team['team_name'] as String?
-                        : student != null
-                            ? student['name'] as String?
-                            : 'Unknown';
-                    
-                    // Get branch for display
-                    String? branch;
-                    if (student != null) {
-                      branch = student['branch'] as String?;
-                    }
-                    
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      color: const Color(0xFF1D1A18),
-                      shape: RoundedRectangleBorder(
+          : _candidates.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.group_off, color: LitColors.ash, size: 48),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No Registrations Found',
+                          style: GoogleFonts.fredoka(
+                            color: LitColors.bone,
+                            fontSize: r.sp(16),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'There are no active participants registered for this event yet.',
+                          style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: r.sp(12)),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : Column(
+                  children: [
+                    // Header info card
+                    Container(
+                      width: double.infinity,
+                      margin: EdgeInsets.fromLTRB(r.w(14), r.h(12), r.w(14), r.h(6)),
+                      padding: EdgeInsets.symmetric(horizontal: r.w(14), vertical: r.h(12)),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF171312),
                         borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: Color(0xFF262220), width: 1.2),
+                        border: Border.all(color: const Color(0xFF282220), width: 1.2),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              displayName ?? 'Unknown',
-                              style: const TextStyle(
-                                color: Color(0xFFF3ECE2),
+                      child: Row(
+                        children: [
+                          Icon(Icons.military_tech_rounded, color: LitColors.amber, size: r.icon(22)),
+                          SizedBox(width: r.w(10)),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Customizable Results (${_positionEntries.length} Positions)',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: LitColors.bone,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: r.sp(12.5),
+                                  ),
+                                ),
+                                Text(
+                                  'Assign 1st, 2nd, 3rd, or any number of positions with custom points.',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: LitColors.ash,
+                                    fontSize: r.sp(10.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: _addPosition,
+                            icon: const Icon(Icons.add, size: 16, color: LitColors.ember),
+                            label: Text(
+                              'Add',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: LitColors.ember,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 14,
+                                fontSize: r.sp(11.5),
                               ),
                             ),
-                            if (student != null && student['usn'] != null)
-                              Text(
-                                student['usn'],
-                                style: const TextStyle(color: Color(0xFF8C857C), fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Position Entries List
+                    Expanded(
+                      child: ListView.builder(
+                        padding: EdgeInsets.fromLTRB(r.w(14), r.h(6), r.w(14), r.h(80)),
+                        itemCount: _positionEntries.length,
+                        itemBuilder: (ctx, i) {
+                          final entry = _positionEntries[i];
+                          final assignedCandidate = entry.selectedRegistrationId == null
+                              ? null
+                              : _candidates.cast<CandidateItem?>().firstWhere(
+                                    (c) => c?.registrationId == entry.selectedRegistrationId,
+                                    orElse: () => null,
+                                  );
+
+                          return Container(
+                            margin: EdgeInsets.only(bottom: r.h(12)),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF191614),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: assignedCandidate != null
+                                    ? LitColors.ember.withValues(alpha: 0.35)
+                                    : const Color(0xFF282321),
+                                width: 1.2,
                               ),
-                            if (branch != null)
-                              Text(
-                                'Branch: $branch',
-                                style: const TextStyle(color: Color(0xFF8C857C), fontSize: 11),
+                            ),
+                            child: Padding(
+                              padding: EdgeInsets.all(r.w(14)),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Row with Medal, Position Title & Delete Button
+                                  Row(
+                                    children: [
+                                      _buildMedalBadge(i, r),
+                                      SizedBox(width: r.w(10)),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              entry.positionName,
+                                              style: GoogleFonts.fredoka(
+                                                color: LitColors.bone,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: r.sp(14),
+                                              ),
+                                            ),
+                                            Text(
+                                              'Rank #${i + 1}',
+                                              style: GoogleFonts.jetBrainsMono(
+                                                color: LitColors.ash,
+                                                fontSize: r.sp(10),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      // Custom Points Input
+                                      SizedBox(
+                                        width: r.w(90),
+                                        child: TextFormField(
+                                          controller: entry.pointsController,
+                                          keyboardType: TextInputType.number,
+                                          style: GoogleFonts.jetBrainsMono(
+                                            color: LitColors.amber,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: r.sp(14),
+                                          ),
+                                          textAlign: TextAlign.center,
+                                          decoration: InputDecoration(
+                                            labelText: 'Points',
+                                            labelStyle: GoogleFonts.plusJakartaSans(
+                                              color: LitColors.ash,
+                                              fontSize: r.sp(10),
+                                            ),
+                                            suffixText: 'pts',
+                                            suffixStyle: GoogleFonts.jetBrainsMono(
+                                              color: LitColors.ash,
+                                              fontSize: r.sp(9),
+                                            ),
+                                            isDense: true,
+                                            contentPadding: EdgeInsets.symmetric(
+                                              horizontal: r.w(8),
+                                              vertical: r.h(8),
+                                            ),
+                                            filled: true,
+                                            fillColor: const Color(0xFF221E1C),
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(8),
+                                              borderSide: const BorderSide(color: Color(0xFF332B28)),
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(8),
+                                              borderSide: const BorderSide(color: Color(0xFF332B28)),
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(8),
+                                              borderSide: const BorderSide(color: LitColors.ember),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(width: r.w(6)),
+                                      // Delete Position Button
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline, color: LitColors.ash, size: 20),
+                                        splashRadius: 18,
+                                        onPressed: () => _removePosition(i),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: r.h(12)),
+
+                                  // Participant Selector Box
+                                  InkWell(
+                                    onTap: () => _showCandidatePicker(entry),
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(10)),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF141110),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: assignedCandidate != null
+                                              ? LitColors.moss.withValues(alpha: 0.4)
+                                              : const Color(0xFF2E2724),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: assignedCandidate == null
+                                          ? Row(
+                                              children: [
+                                                const Icon(Icons.person_add_alt_1_outlined, color: LitColors.ash, size: 18),
+                                                SizedBox(width: r.w(8)),
+                                                Expanded(
+                                                  child: Text(
+                                                    'Tap to select participant or team...',
+                                                    style: GoogleFonts.plusJakartaSans(
+                                                      color: LitColors.ash,
+                                                      fontSize: r.sp(12),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const Icon(Icons.arrow_drop_down, color: LitColors.ash),
+                                              ],
+                                            )
+                                          : Row(
+                                              children: [
+                                                Icon(
+                                                  assignedCandidate.teamId != null ? Icons.group : Icons.person,
+                                                  color: LitColors.moss,
+                                                  size: 18,
+                                                ),
+                                                SizedBox(width: r.w(8)),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        assignedCandidate.title,
+                                                        style: GoogleFonts.plusJakartaSans(
+                                                          color: LitColors.bone,
+                                                          fontWeight: FontWeight.bold,
+                                                          fontSize: r.sp(13),
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        assignedCandidate.subtitle,
+                                                        style: GoogleFonts.plusJakartaSans(
+                                                          color: LitColors.ash,
+                                                          fontSize: r.sp(11),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                if (assignedCandidate.branch != null)
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                    margin: const EdgeInsets.only(right: 6),
+                                                    decoration: BoxDecoration(
+                                                      color: LitColors.ember.withValues(alpha: 0.15),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                      border: Border.all(color: LitColors.ember.withValues(alpha: 0.3)),
+                                                    ),
+                                                    child: Text(
+                                                      assignedCandidate.branch!,
+                                                      style: GoogleFonts.jetBrainsMono(
+                                                        color: LitColors.ember,
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 11,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                const Icon(Icons.edit, color: LitColors.ash, size: 16),
+                                              ],
+                                            ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            const SizedBox(height: 12),
-                            DropdownButtonFormField<ResultPosition>(
-                              initialValue: _positions[reg['id']],
-                              style: const TextStyle(color: Color(0xFFF3ECE2)),
-                              dropdownColor: const Color(0xFF1D1A18),
-                              decoration: InputDecoration(
-                                labelText: 'Position (${_positions[reg['id']]?.points ?? 0} pts)',
-                                labelStyle: const TextStyle(color: Color(0xFF8C857C)),
-                                enabledBorder: const OutlineInputBorder(
-                                  borderSide: BorderSide(color: Color(0xFF262220)),
-                                  borderRadius: BorderRadius.all(Radius.circular(8)),
-                                ),
-                                focusedBorder: const OutlineInputBorder(
-                                  borderSide: BorderSide(color: Color(0xFFFF6A2C)),
-                                  borderRadius: BorderRadius.all(Radius.circular(8)),
-                                ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+      bottomNavigationBar: _candidates.isEmpty
+          ? null
+          : Container(
+              padding: EdgeInsets.all(r.w(14)),
+              decoration: const BoxDecoration(
+                color: Color(0xFF141110),
+                border: Border(
+                  top: BorderSide(color: Color(0xFF262220), width: 1.0),
+                ),
+              ),
+              child: SafeArea(
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: OutlinedButton.icon(
+                        onPressed: _addPosition,
+                        icon: const Icon(Icons.add, size: 16, color: LitColors.bone),
+                        label: Text(
+                          '+ Position',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: LitColors.bone,
+                            fontWeight: FontWeight.bold,
+                            fontSize: r.sp(12),
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF332B28)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: EdgeInsets.symmetric(vertical: r.h(12)),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: r.w(10)),
+                    Expanded(
+                      flex: 3,
+                      child: ClayButton(
+                        onPressed: _saving ? null : _publishResults,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (_saving)
+                              const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            else ...[
+                              Icon(Icons.emoji_events, size: r.icon(18), color: Colors.white),
+                              SizedBox(width: r.w(8)),
+                            ],
+                            Text(
+                              _saving ? 'Publishing...' : 'Publish Results',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontWeight: FontWeight.bold,
+                                fontSize: r.sp(13),
+                                color: Colors.white,
                               ),
-                              items: ResultPosition.values.map((p) {
-                                return DropdownMenuItem(
-                                  value: p,
-                                  child: Text('${p.label} (+${p.points} pts)'),
-                                );
-                              }).toList(),
-                              onChanged: (v) => setState(() => _positions[reg['id']] = v),
                             ),
                           ],
                         ),
                       ),
-                    );
-                  },
+                    ),
+                  ],
                 ),
+              ),
+            ),
     );
   }
 }

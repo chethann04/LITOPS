@@ -231,11 +231,18 @@ class AppUtils {
       if (position == null) continue;
 
       int pts = 0;
-      if (position == 'winner') {
+      final customScore = res['score'];
+      if (customScore != null) {
+        pts = (customScore as num).toInt();
+      } else if (position == 'winner') {
         pts = 10;
-      } else if (position == 'runner_up') pts = 7;
-      else if (position == 'second_runner_up') pts = 5;
-      else if (position == 'participation') pts = 1;
+      } else if (position == 'runner_up') {
+        pts = 7;
+      } else if (position == 'second_runner_up') {
+        pts = 5;
+      } else if (position == 'participation') {
+        pts = 1;
+      }
 
       points[branch] = (points[branch] ?? 0) + pts;
     }

@@ -92,6 +92,7 @@ enum UserRole {
   bool get canManageResults =>
       isSuperAdmin ||
       isAdmin ||
+      canManageEvents ||
       this == UserRole.eventManager ||
       this == UserRole.eventManagerCoEditorial;
 
