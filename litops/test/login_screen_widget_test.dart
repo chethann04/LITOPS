@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:litops/features/auth/screens/login_screen.dart';
 import 'package:litops/features/auth/providers/auth_provider.dart';
 
-class FakeAuthNotifier extends StateNotifier<AuthState> {
-  FakeAuthNotifier() : super(const AuthState());
+class FakeAuthNotifier extends AuthNotifier {
+  FakeAuthNotifier(Ref ref) : super(ref.read(authRepositoryProvider), ref);
 }
 
 void main() {
@@ -14,7 +14,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authStateProvider.overrideWith((ref) => FakeAuthNotifier()),
+          authStateProvider.overrideWith((ref) => FakeAuthNotifier(ref)),
         ],
         child: const MaterialApp(
           home: LoginScreen(),

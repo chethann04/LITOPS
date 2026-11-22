@@ -9,6 +9,7 @@ import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'event_detail_screen.dart';
+import 'events_screen.dart' show eventsListProvider;
 import '../../../core/utils/responsive.dart';
 
 class CreateEventScreen extends ConsumerStatefulWidget {
@@ -63,7 +64,8 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     if (e.eventTime != null) {
       try {
         final parts = e.eventTime!.split(':');
-        _eventTime = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+        _eventTime =
+            TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
       } catch (_) {}
     }
   }
@@ -72,7 +74,11 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     setState(() => _isLoadingEvent = true);
     try {
       final client = SupabaseConfig.client;
-      final data = await client.from(SupabaseTables.events).select().eq('id', id).single();
+      final data = await client
+          .from(SupabaseTables.events)
+          .select()
+          .eq('id', id)
+          .single();
       final event = Event.fromJson(data);
       if (mounted) {
         setState(() {
@@ -85,7 +91,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
       if (mounted) {
         setState(() => _isLoadingEvent = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load event details: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Failed to load event details: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -111,12 +119,22 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     final data = {
       'title': _nameController.text.trim(),
       'category': _category.value,
-      'description': _descController.text.trim().isEmpty ? null : _descController.text.trim(),
-      'rules': _rulesController.text.trim().isEmpty ? null : _rulesController.text.trim(),
-      'venue': _venueController.text.trim().isEmpty ? null : _venueController.text.trim(),
+      'description': _descController.text.trim().isEmpty
+          ? null
+          : _descController.text.trim(),
+      'rules': _rulesController.text.trim().isEmpty
+          ? null
+          : _rulesController.text.trim(),
+      'venue': _venueController.text.trim().isEmpty
+          ? null
+          : _venueController.text.trim(),
       'event_date': _eventDate?.toIso8601String().split('T').first,
-      'event_time': _eventTime != null ? '${_eventTime!.hour.toString().padLeft(2, '0')}:${_eventTime!.minute.toString().padLeft(2, '0')}:00' : null,
-      'capacity': _capacityController.text.isNotEmpty ? int.tryParse(_capacityController.text) : null,
+      'event_time': _eventTime != null
+          ? '${_eventTime!.hour.toString().padLeft(2, '0')}:${_eventTime!.minute.toString().padLeft(2, '0')}:00'
+          : null,
+      'capacity': _capacityController.text.isNotEmpty
+          ? int.tryParse(_capacityController.text)
+          : null,
       'team_size': int.tryParse(_teamSizeController.text) ?? 1,
       'is_team_event': _isTeamEvent,
       'registration_deadline': _deadline?.toIso8601String(),
@@ -128,21 +146,29 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
       final isEdit = widget.eventToEdit != null || widget.eventId != null;
       final id = widget.eventToEdit?.id ?? widget.eventId;
       if (isEdit) {
+        final updateData = Map<String, dynamic>.from(data);
+        updateData.remove('created_by');
+        updateData['updated_at'] = DateTime.now().toIso8601String();
+
         await SupabaseConfig.client
             .from(SupabaseTables.events)
-            .update(data)
+            .update(updateData)
             .eq('id', id!);
 
         ref.invalidate(eventDetailProvider(id));
+        ref.invalidate(eventsListProvider);
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Event updated successfully')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Event updated successfully')));
           context.pop();
         }
       } else {
         await SupabaseConfig.client.from(SupabaseTables.events).insert(data);
+        ref.invalidate(eventsListProvider);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Event created successfully')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Event created successfully')));
           context.pop();
         }
       }
@@ -150,20 +176,26 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
       debugPrint('Error saving event: $e');
       if (mounted) {
         final isEdit = widget.eventToEdit != null || widget.eventId != null;
-        String msg = isEdit ? 'Failed to update event' : 'Failed to create event';
+        String msg =
+            isEdit ? 'Failed to update event' : 'Failed to create event';
         final errStr = e.toString();
-        if (errStr.contains('Could not find the table') || errStr.contains('PGRST205')) {
-          msg = 'Database not set up. Please run the schema SQL in Supabase Dashboard > SQL Editor first.';
+        if (errStr.contains('Could not find the table') ||
+            errStr.contains('PGRST205')) {
+          msg =
+              'Database not set up. Please run the schema SQL in Supabase Dashboard > SQL Editor first.';
         } else if (errStr.contains('new row violates row-level security')) {
-
           msg = 'Permission denied. Your role does not allow modifying events.';
-        } else if (errStr.contains('SocketException') || errStr.contains('Network')) {
+        } else if (errStr.contains('SocketException') ||
+            errStr.contains('Network')) {
           msg = 'Network error. Check your internet connection.';
         } else {
           msg = '${isEdit ? "Failed to update" : "Failed to create"} event: $e';
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: Colors.red, duration: const Duration(seconds: 5)),
+          SnackBar(
+              content: Text(msg),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5)),
         );
       }
     }
@@ -185,7 +217,10 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         ),
         title: Text(
           isEdit ? 'Edit Event' : 'Create Event',
-          style: GoogleFonts.fredoka(color: LitColors.bone, fontWeight: FontWeight.bold, fontSize: r.sp(18)),
+          style: GoogleFonts.fredoka(
+              color: LitColors.bone,
+              fontWeight: FontWeight.bold,
+              fontSize: r.sp(18)),
         ),
         actions: [
           TextButton(
@@ -216,36 +251,46 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                       children: [
                         Text(
                           'Event Name *',
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: r.sp(12), fontWeight: FontWeight.w600),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.ash,
+                              fontSize: r.sp(12),
+                              fontWeight: FontWeight.w600),
                         ),
                         SizedBox(height: r.h(8)),
                         TextFormField(
                           controller: _nameController,
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.bone),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.bone),
                           decoration: InputDecoration(
                             hintText: 'Enter event name',
-                            hintStyle: GoogleFonts.plusJakartaSans(color: LitColors.ash.withValues(alpha: 0.5)),
+                            hintStyle: GoogleFonts.plusJakartaSans(
+                                color: LitColors.ash.withValues(alpha: 0.5)),
                             enabledBorder: OutlineInputBorder(
                               borderSide: BorderSide(color: LitColors.clay2),
                               borderRadius: BorderRadius.circular(r.radius(12)),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: LitColors.ember),
+                              borderSide:
+                                  const BorderSide(color: LitColors.ember),
                               borderRadius: BorderRadius.circular(r.radius(12)),
                             ),
                             errorBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: LitColors.coral),
+                              borderSide:
+                                  const BorderSide(color: LitColors.coral),
                               borderRadius: BorderRadius.circular(r.radius(12)),
                             ),
                             focusedErrorBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: LitColors.coral),
+                              borderSide:
+                                  const BorderSide(color: LitColors.coral),
                               borderRadius: BorderRadius.circular(r.radius(12)),
                             ),
                             filled: true,
                             fillColor: LitColors.clay,
-                            contentPadding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(14)),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: r.w(12), vertical: r.h(14)),
                           ),
-                          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                          validator: (v) =>
+                              v == null || v.isEmpty ? 'Required' : null,
                         ),
                       ],
                     ),
@@ -260,30 +305,37 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                       children: [
                         Text(
                           'Category',
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: r.sp(12), fontWeight: FontWeight.w600),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.ash,
+                              fontSize: r.sp(12),
+                              fontWeight: FontWeight.w600),
                         ),
                         SizedBox(height: r.h(8)),
                         DropdownButtonFormField<EventCategory>(
                           initialValue: _category,
                           dropdownColor: LitColors.clay,
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.bone),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.bone),
                           decoration: InputDecoration(
                             enabledBorder: OutlineInputBorder(
                               borderSide: BorderSide(color: LitColors.clay2),
                               borderRadius: BorderRadius.circular(r.radius(12)),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: LitColors.ember),
+                              borderSide:
+                                  const BorderSide(color: LitColors.ember),
                               borderRadius: BorderRadius.circular(r.radius(12)),
                             ),
                             filled: true,
                             fillColor: LitColors.clay,
-                            contentPadding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(14)),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: r.w(12), vertical: r.h(14)),
                           ),
                           items: EventCategory.values.map((c) {
                             return DropdownMenuItem(
                               value: c,
-                              child: Text(c.label, style: GoogleFonts.plusJakartaSans()),
+                              child: Text(c.label,
+                                  style: GoogleFonts.plusJakartaSans()),
                             );
                           }).toList(),
                           onChanged: (v) => setState(() => _category = v!),
@@ -301,30 +353,37 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                       children: [
                         Text(
                           'Status',
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: r.sp(12), fontWeight: FontWeight.w600),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.ash,
+                              fontSize: r.sp(12),
+                              fontWeight: FontWeight.w600),
                         ),
                         SizedBox(height: r.h(8)),
                         DropdownButtonFormField<EventStatus>(
                           initialValue: _status,
                           dropdownColor: LitColors.clay,
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.bone),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.bone),
                           decoration: InputDecoration(
                             enabledBorder: OutlineInputBorder(
                               borderSide: BorderSide(color: LitColors.clay2),
                               borderRadius: BorderRadius.circular(r.radius(12)),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: LitColors.ember),
+                              borderSide:
+                                  const BorderSide(color: LitColors.ember),
                               borderRadius: BorderRadius.circular(r.radius(12)),
                             ),
                             filled: true,
                             fillColor: LitColors.clay,
-                            contentPadding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(14)),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: r.w(12), vertical: r.h(14)),
                           ),
                           items: EventStatus.values.map((s) {
                             return DropdownMenuItem(
                               value: s,
-                              child: Text(s.label, style: GoogleFonts.plusJakartaSans()),
+                              child: Text(s.label,
+                                  style: GoogleFonts.plusJakartaSans()),
                             );
                           }).toList(),
                           onChanged: (v) => setState(() => _status = v!),
@@ -342,27 +401,34 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                       children: [
                         Text(
                           'Description',
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: r.sp(12), fontWeight: FontWeight.w600),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.ash,
+                              fontSize: r.sp(12),
+                              fontWeight: FontWeight.w600),
                         ),
                         SizedBox(height: r.h(8)),
                         TextFormField(
                           controller: _descController,
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.bone),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.bone),
                           maxLines: 3,
                           decoration: InputDecoration(
                             hintText: 'Enter event description',
-                            hintStyle: GoogleFonts.plusJakartaSans(color: LitColors.ash.withValues(alpha: 0.5)),
+                            hintStyle: GoogleFonts.plusJakartaSans(
+                                color: LitColors.ash.withValues(alpha: 0.5)),
                             enabledBorder: OutlineInputBorder(
                               borderSide: BorderSide(color: LitColors.clay2),
                               borderRadius: BorderRadius.circular(r.radius(12)),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: LitColors.ember),
+                              borderSide:
+                                  const BorderSide(color: LitColors.ember),
                               borderRadius: BorderRadius.circular(r.radius(12)),
                             ),
                             filled: true,
                             fillColor: LitColors.clay,
-                            contentPadding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(14)),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: r.w(12), vertical: r.h(14)),
                           ),
                         ),
                       ],
@@ -378,27 +444,34 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                       children: [
                         Text(
                           'Rules',
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: r.sp(12), fontWeight: FontWeight.w600),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.ash,
+                              fontSize: r.sp(12),
+                              fontWeight: FontWeight.w600),
                         ),
                         SizedBox(height: r.h(8)),
                         TextFormField(
                           controller: _rulesController,
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.bone),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.bone),
                           maxLines: 4,
                           decoration: InputDecoration(
                             hintText: 'Enter event rules',
-                            hintStyle: GoogleFonts.plusJakartaSans(color: LitColors.ash.withValues(alpha: 0.5)),
+                            hintStyle: GoogleFonts.plusJakartaSans(
+                                color: LitColors.ash.withValues(alpha: 0.5)),
                             enabledBorder: OutlineInputBorder(
                               borderSide: BorderSide(color: LitColors.clay2),
                               borderRadius: BorderRadius.circular(r.radius(12)),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: LitColors.ember),
+                              borderSide:
+                                  const BorderSide(color: LitColors.ember),
                               borderRadius: BorderRadius.circular(r.radius(12)),
                             ),
                             filled: true,
                             fillColor: LitColors.clay,
-                            contentPadding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(14)),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: r.w(12), vertical: r.h(14)),
                           ),
                         ),
                       ],
@@ -414,26 +487,33 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                       children: [
                         Text(
                           'Venue',
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: r.sp(12), fontWeight: FontWeight.w600),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.ash,
+                              fontSize: r.sp(12),
+                              fontWeight: FontWeight.w600),
                         ),
                         SizedBox(height: r.h(8)),
                         TextFormField(
                           controller: _venueController,
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.bone),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.bone),
                           decoration: InputDecoration(
                             hintText: 'Enter venue',
-                            hintStyle: GoogleFonts.plusJakartaSans(color: LitColors.ash.withValues(alpha: 0.5)),
+                            hintStyle: GoogleFonts.plusJakartaSans(
+                                color: LitColors.ash.withValues(alpha: 0.5)),
                             enabledBorder: OutlineInputBorder(
                               borderSide: BorderSide(color: LitColors.clay2),
                               borderRadius: BorderRadius.circular(r.radius(12)),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: LitColors.ember),
+                              borderSide:
+                                  const BorderSide(color: LitColors.ember),
                               borderRadius: BorderRadius.circular(r.radius(12)),
                             ),
                             filled: true,
                             fillColor: LitColors.clay,
-                            contentPadding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(14)),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: r.w(12), vertical: r.h(14)),
                           ),
                         ),
                       ],
@@ -462,7 +542,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                       onPrimary: Colors.white,
                                       surface: LitColors.clay,
                                       onSurface: LitColors.bone,
-                                    ), dialogTheme: DialogThemeData(backgroundColor: LitColors.void_),
+                                    ),
+                                    dialogTheme: DialogThemeData(
+                                        backgroundColor: LitColors.void_),
                                   ),
                                   child: child!,
                                 );
@@ -471,7 +553,8 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             if (date != null) setState(() => _eventDate = date);
                           },
                           child: Container(
-                            padding: EdgeInsets.symmetric(vertical: r.h(12), horizontal: r.w(12)),
+                            padding: EdgeInsets.symmetric(
+                                vertical: r.h(12), horizontal: r.w(12)),
                             decoration: BoxDecoration(
                               color: LitColors.clay,
                               borderRadius: BorderRadius.circular(r.radius(12)),
@@ -479,20 +562,29 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.calendar_today, color: LitColors.ash, size: r.icon(20)),
+                                Icon(Icons.calendar_today,
+                                    color: LitColors.ash, size: r.icon(20)),
                                 SizedBox(width: r.w(12)),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Event Date',
-                                        style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: r.sp(12), fontWeight: FontWeight.w600),
+                                        style: GoogleFonts.plusJakartaSans(
+                                            color: LitColors.ash,
+                                            fontSize: r.sp(12),
+                                            fontWeight: FontWeight.w600),
                                       ),
                                       SizedBox(height: r.h(2)),
                                       Text(
-                                        _eventDate != null ? '${_eventDate!.day}/${_eventDate!.month}/${_eventDate!.year}' : 'Not set',
-                                        style: GoogleFonts.plusJakartaSans(color: LitColors.bone, fontSize: r.sp(14)),
+                                        _eventDate != null
+                                            ? '${_eventDate!.day}/${_eventDate!.month}/${_eventDate!.year}'
+                                            : 'Not set',
+                                        style: GoogleFonts.plusJakartaSans(
+                                            color: LitColors.bone,
+                                            fontSize: r.sp(14)),
                                       ),
                                     ],
                                   ),
@@ -517,7 +609,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                       onPrimary: Colors.white,
                                       surface: LitColors.clay,
                                       onSurface: LitColors.bone,
-                                    ), dialogTheme: DialogThemeData(backgroundColor: LitColors.void_),
+                                    ),
+                                    dialogTheme: DialogThemeData(
+                                        backgroundColor: LitColors.void_),
                                   ),
                                   child: child!,
                                 );
@@ -526,7 +620,8 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             if (time != null) setState(() => _eventTime = time);
                           },
                           child: Container(
-                            padding: EdgeInsets.symmetric(vertical: r.h(12), horizontal: r.w(12)),
+                            padding: EdgeInsets.symmetric(
+                                vertical: r.h(12), horizontal: r.w(12)),
                             decoration: BoxDecoration(
                               color: LitColors.clay,
                               borderRadius: BorderRadius.circular(r.radius(12)),
@@ -534,20 +629,29 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.access_time, color: LitColors.ash, size: r.icon(20)),
+                                Icon(Icons.access_time,
+                                    color: LitColors.ash, size: r.icon(20)),
                                 SizedBox(width: r.w(12)),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Event Time',
-                                        style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: r.sp(12), fontWeight: FontWeight.w600),
+                                        style: GoogleFonts.plusJakartaSans(
+                                            color: LitColors.ash,
+                                            fontSize: r.sp(12),
+                                            fontWeight: FontWeight.w600),
                                       ),
                                       SizedBox(height: r.h(2)),
                                       Text(
-                                        _eventTime != null ? '${_eventTime!.hour.toString().padLeft(2, '0')}:${_eventTime!.minute.toString().padLeft(2, '0')}' : 'Not set',
-                                        style: GoogleFonts.plusJakartaSans(color: LitColors.bone, fontSize: r.sp(14)),
+                                        _eventTime != null
+                                            ? '${_eventTime!.hour.toString().padLeft(2, '0')}:${_eventTime!.minute.toString().padLeft(2, '0')}'
+                                            : 'Not set',
+                                        style: GoogleFonts.plusJakartaSans(
+                                            color: LitColors.bone,
+                                            fontSize: r.sp(14)),
                                       ),
                                     ],
                                   ),
@@ -574,7 +678,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                       onPrimary: Colors.white,
                                       surface: LitColors.clay,
                                       onSurface: LitColors.bone,
-                                    ), dialogTheme: DialogThemeData(backgroundColor: LitColors.void_),
+                                    ),
+                                    dialogTheme: DialogThemeData(
+                                        backgroundColor: LitColors.void_),
                                   ),
                                   child: child!,
                                 );
@@ -583,7 +689,8 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             if (date != null) setState(() => _deadline = date);
                           },
                           child: Container(
-                            padding: EdgeInsets.symmetric(vertical: r.h(12), horizontal: r.w(12)),
+                            padding: EdgeInsets.symmetric(
+                                vertical: r.h(12), horizontal: r.w(12)),
                             decoration: BoxDecoration(
                               color: LitColors.clay,
                               borderRadius: BorderRadius.circular(r.radius(12)),
@@ -591,20 +698,29 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.timer, color: LitColors.ash, size: r.icon(20)),
+                                Icon(Icons.timer,
+                                    color: LitColors.ash, size: r.icon(20)),
                                 SizedBox(width: r.w(12)),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Registration Deadline',
-                                        style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: r.sp(12), fontWeight: FontWeight.w600),
+                                        style: GoogleFonts.plusJakartaSans(
+                                            color: LitColors.ash,
+                                            fontSize: r.sp(12),
+                                            fontWeight: FontWeight.w600),
                                       ),
                                       SizedBox(height: r.h(2)),
                                       Text(
-                                        _deadline != null ? '${_deadline!.day}/${_deadline!.month}/${_deadline!.year}' : 'Not set',
-                                        style: GoogleFonts.plusJakartaSans(color: LitColors.bone, fontSize: r.sp(14)),
+                                        _deadline != null
+                                            ? '${_deadline!.day}/${_deadline!.month}/${_deadline!.year}'
+                                            : 'Not set',
+                                        style: GoogleFonts.plusJakartaSans(
+                                            color: LitColors.bone,
+                                            fontSize: r.sp(14)),
                                       ),
                                     ],
                                   ),
@@ -629,27 +745,38 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             children: [
                               Text(
                                 'Capacity',
-                                style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: r.sp(12), fontWeight: FontWeight.w600),
+                                style: GoogleFonts.plusJakartaSans(
+                                    color: LitColors.ash,
+                                    fontSize: r.sp(12),
+                                    fontWeight: FontWeight.w600),
                               ),
                               SizedBox(height: r.h(8)),
                               TextFormField(
                                 controller: _capacityController,
                                 keyboardType: TextInputType.number,
-                                style: GoogleFonts.plusJakartaSans(color: LitColors.bone),
+                                style: GoogleFonts.plusJakartaSans(
+                                    color: LitColors.bone),
                                 decoration: InputDecoration(
                                   hintText: 'Max participants',
-                                  hintStyle: GoogleFonts.plusJakartaSans(color: LitColors.ash.withValues(alpha: 0.5)),
+                                  hintStyle: GoogleFonts.plusJakartaSans(
+                                      color:
+                                          LitColors.ash.withValues(alpha: 0.5)),
                                   enabledBorder: OutlineInputBorder(
-                                    borderSide: BorderSide(color: LitColors.clay2),
-                                    borderRadius: BorderRadius.circular(r.radius(12)),
+                                    borderSide:
+                                        BorderSide(color: LitColors.clay2),
+                                    borderRadius:
+                                        BorderRadius.circular(r.radius(12)),
                                   ),
                                   focusedBorder: OutlineInputBorder(
-                                    borderSide: const BorderSide(color: LitColors.ember),
-                                    borderRadius: BorderRadius.circular(r.radius(12)),
+                                    borderSide: const BorderSide(
+                                        color: LitColors.ember),
+                                    borderRadius:
+                                        BorderRadius.circular(r.radius(12)),
                                   ),
                                   filled: true,
                                   fillColor: LitColors.clay,
-                                  contentPadding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(14)),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: r.w(12), vertical: r.h(14)),
                                 ),
                               ),
                             ],
@@ -662,27 +789,38 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             children: [
                               Text(
                                 'Team Size',
-                                style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: r.sp(12), fontWeight: FontWeight.w600),
+                                style: GoogleFonts.plusJakartaSans(
+                                    color: LitColors.ash,
+                                    fontSize: r.sp(12),
+                                    fontWeight: FontWeight.w600),
                               ),
                               SizedBox(height: r.h(8)),
                               TextFormField(
                                 controller: _teamSizeController,
                                 keyboardType: TextInputType.number,
-                                style: GoogleFonts.plusJakartaSans(color: LitColors.bone),
+                                style: GoogleFonts.plusJakartaSans(
+                                    color: LitColors.bone),
                                 decoration: InputDecoration(
                                   hintText: 'Per team',
-                                  hintStyle: GoogleFonts.plusJakartaSans(color: LitColors.ash.withValues(alpha: 0.5)),
+                                  hintStyle: GoogleFonts.plusJakartaSans(
+                                      color:
+                                          LitColors.ash.withValues(alpha: 0.5)),
                                   enabledBorder: OutlineInputBorder(
-                                    borderSide: BorderSide(color: LitColors.clay2),
-                                    borderRadius: BorderRadius.circular(r.radius(12)),
+                                    borderSide:
+                                        BorderSide(color: LitColors.clay2),
+                                    borderRadius:
+                                        BorderRadius.circular(r.radius(12)),
                                   ),
                                   focusedBorder: OutlineInputBorder(
-                                    borderSide: const BorderSide(color: LitColors.ember),
-                                    borderRadius: BorderRadius.circular(r.radius(12)),
+                                    borderSide: const BorderSide(
+                                        color: LitColors.ember),
+                                    borderRadius:
+                                        BorderRadius.circular(r.radius(12)),
                                   ),
                                   filled: true,
                                   fillColor: LitColors.clay,
-                                  contentPadding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(14)),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: r.w(12), vertical: r.h(14)),
                                 ),
                               ),
                             ],
@@ -701,7 +839,10 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                       children: [
                         Text(
                           'Team Event',
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.bone, fontWeight: FontWeight.w600, fontSize: r.sp(14)),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.bone,
+                              fontWeight: FontWeight.w600,
+                              fontSize: r.sp(14)),
                         ),
                         ClaySwitch(
                           value: _isTeamEvent,
@@ -718,7 +859,10 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                     height: r.h(52),
                     child: Text(
                       isEdit ? 'Update Event' : 'Create Event',
-                      style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: r.sp(14)),
+                      style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: r.sp(14)),
                     ),
                   ),
                   SizedBox(height: r.h(20)),

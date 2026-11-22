@@ -3,7 +3,7 @@
 -- Run this in Supabase Dashboard > SQL Editor > New Query > Run
 -- ============================================================================
 
--- 1. Ensure RLS policies on events table allow all event managers, directors, presidents, and admins to update events
+-- 1. Ensure RLS policies on events table allow all club leads, coordinators, and directors to update events
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Super admin can update events" ON public.events;
@@ -17,29 +17,39 @@ CREATE POLICY "Authorized roles can update events" ON public.events
   USING (
     is_super_admin() OR
     is_admin() OR
-    is_role('event_manager') OR
-    is_role('event_manager_co_editorial') OR
-    is_role('event_director') OR
-    is_role('student_president') OR
-    is_role('student_vice_president') OR
     created_by = auth.uid() OR
     EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND (year = 4 OR role = 'super_admin'::user_role) AND is_active = true
+      SELECT 1 FROM public.event_assignments 
+      WHERE event_id = events.id AND user_id = auth.uid()
+    ) OR
+    EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE id = auth.uid() 
+        AND is_active = true 
+        AND (
+          role NOT IN ('junior_wing'::user_role, 'assistant_coordinator'::user_role)
+          OR year = 4
+          OR role = 'super_admin'::user_role
+        )
     )
   )
   WITH CHECK (
     is_super_admin() OR
     is_admin() OR
-    is_role('event_manager') OR
-    is_role('event_manager_co_editorial') OR
-    is_role('event_director') OR
-    is_role('student_president') OR
-    is_role('student_vice_president') OR
     created_by = auth.uid() OR
     EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND (year = 4 OR role = 'super_admin'::user_role) AND is_active = true
+      SELECT 1 FROM public.event_assignments 
+      WHERE event_id = events.id AND user_id = auth.uid()
+    ) OR
+    EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE id = auth.uid() 
+        AND is_active = true 
+        AND (
+          role NOT IN ('junior_wing'::user_role, 'assistant_coordinator'::user_role)
+          OR year = 4
+          OR role = 'super_admin'::user_role
+        )
     )
   );
 
@@ -92,7 +102,7 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  -- Verify caller
+  -- Verify caller profile
   SELECT role, year INTO v_caller_role, v_caller_year
   FROM public.profiles
   WHERE id = auth.uid() AND is_active = true;
@@ -101,15 +111,12 @@ BEGIN
     RAISE EXCEPTION 'User profile not found or inactive';
   END IF;
 
-  -- Permission check: super_admin, admin, event_manager, event_director, 4th year, or creator
+  -- Permission check:
+  -- Allowed for: super_admin, any committee head/lead/director/president (any role other than junior_wing and assistant_coordinator),
+  -- 4th year coordinators, creator of the event, or any member assigned to the event.
   IF NOT (
     v_caller_role = 'super_admin'::user_role OR
-    v_caller_role = 'student_president'::user_role OR
-    v_caller_role = 'student_vice_president'::user_role OR
-    v_caller_role = 'joint_secretary'::user_role OR
-    v_caller_role = 'event_director'::user_role OR
-    v_caller_role = 'event_manager'::user_role OR
-    v_caller_role = 'event_manager_co_editorial'::user_role OR
+    v_caller_role NOT IN ('junior_wing'::user_role, 'assistant_coordinator'::user_role) OR
     v_caller_year = 4 OR
     EXISTS (SELECT 1 FROM public.events WHERE id = p_event_id AND created_by = auth.uid()) OR
     EXISTS (SELECT 1 FROM public.event_assignments WHERE event_id = p_event_id AND user_id = auth.uid())
