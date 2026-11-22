@@ -3,10 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/models.dart';
 import '../../../core/enums/enums.dart';
+import '../../../core/utils/app_utils.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../auth/providers/auth_settings_provider.dart';
 import '../../students/providers/student_providers.dart';
+import '../../../core/providers/auto_refresh_provider.dart';
 
 // Providers for reading data
 final pendingProfilesProvider = FutureProvider<List<Profile>>((ref) async {
@@ -95,7 +97,7 @@ final activeYearlyArchiveProvider = FutureProvider<YearlyArchive?>((ref) async {
 final departmentRankingsProvider = StreamProvider<List<DepartmentRanking>>((ref) async* {
   Future<List<DepartmentRanking>> fetchRankings() async {
     final allDepartments = [
-      'CS', 'IS', 'CI', 'CB', 'RI', 'EC', 'VL', 'EI', 'EE', 'CV', 'ME'
+      'CSE', 'ISE', 'CI', 'CB', 'RI', 'ECE', 'VL', 'EI', 'EE', 'CV', 'ME'
     ];
     
     try {
@@ -110,12 +112,12 @@ final departmentRankingsProvider = StreamProvider<List<DepartmentRanking>>((ref)
       }
       
       void addPoints(String branch, int points, {bool isWin = false, bool isRunner = false, bool isSecondRunner = false}) {
-        final b = branch.toUpperCase();
+        final b = AppUtils.mapUsnBranchToOfficial(branch);
         if (!branchStats.containsKey(b)) return;
-        branchStats[b]!['points'] += points;
-        if (isWin) branchStats[b]!['wins'] += 1;
-        if (isRunner) branchStats[b]!['runnerUps'] += 1;
-        if (isSecondRunner) branchStats[b]!['secondRunnerUps'] += 1;
+        branchStats[b]!['points'] = (branchStats[b]!['points'] as int) + points;
+        if (isWin) branchStats[b]!['wins'] = (branchStats[b]!['wins'] as int) + 1;
+        if (isRunner) branchStats[b]!['runnerUps'] = (branchStats[b]!['runnerUps'] as int) + 1;
+        if (isSecondRunner) branchStats[b]!['secondRunnerUps'] = (branchStats[b]!['secondRunnerUps'] as int) + 1;
       }
 
       for (var p in manualPoints) {
@@ -147,7 +149,20 @@ final departmentRankingsProvider = StreamProvider<List<DepartmentRanking>>((ref)
             .from(SupabaseTables.departmentRankings)
             .select()
             .order('total_points', ascending: false);
-        return (data as List).map((e) => DepartmentRanking.fromJson(e)).toList();
+        return (data as List).map((e) {
+          final r = DepartmentRanking.fromJson(e);
+          final mappedBranch = AppUtils.mapUsnBranchToOfficial(r.branch);
+          return DepartmentRanking(
+            id: r.id,
+            festYear: r.festYear,
+            branch: mappedBranch,
+            totalPoints: r.totalPoints,
+            totalWins: r.totalWins,
+            totalRunnerUps: r.totalRunnerUps,
+            totalSecondRunnerUps: r.totalSecondRunnerUps,
+            lastCalculatedAt: r.lastCalculatedAt,
+          );
+        }).toList();
       } catch (_) {
         return [];
       }
@@ -431,9 +446,10 @@ class AdminController {
     ResultPosition? position,
     required String allocatedBy,
   }) async {
+    final officialBranch = AppUtils.mapUsnBranchToOfficial(branch);
     await SupabaseConfig.client.from(SupabaseTables.eventPoints).insert({
       'event_id': eventId,
-      'branch': branch,
+      'branch': officialBranch,
       'student_id': studentId,
       'team_id': teamId,
       'points': points,

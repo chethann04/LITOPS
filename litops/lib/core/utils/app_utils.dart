@@ -224,8 +224,10 @@ class AppUtils {
       final student = reg != null ? reg['student_master'] as Map<String, dynamic>? : null;
       if (student == null) continue;
 
-      final branch = (student['branch'] as String?)?.toUpperCase();
-      if (branch == null || !allBranches.contains(branch)) continue;
+      final rawBranch = (student['branch'] as String?)?.trim();
+      if (rawBranch == null || rawBranch.isEmpty) continue;
+      final branch = mapUsnBranchToOfficial(rawBranch);
+      if (!allBranches.contains(branch)) continue;
 
       final position = res['position'] as String?;
       if (position == null) continue;

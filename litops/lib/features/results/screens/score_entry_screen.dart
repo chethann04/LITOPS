@@ -9,6 +9,7 @@ import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../admin/providers/admin_providers.dart';
 import '../../events/screens/event_detail_screen.dart';
 import '../../events/screens/events_screen.dart';
 import '../../sarvottam/screens/leaderboard_screen.dart';
@@ -114,8 +115,13 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
           if (!seenTeams.contains(teamId)) {
             seenTeams.add(teamId);
             final teamName = team['team_name'] as String? ?? 'Team';
-            final branch = student?['branch'] as String?;
+            final rawBranch = student?['branch'] as String?;
             final usn = student?['usn'] as String?;
+            final branch = (rawBranch != null && rawBranch.trim().isNotEmpty)
+                ? AppUtils.mapUsnBranchToOfficial(rawBranch)
+                : (usn != null && usn.trim().isNotEmpty
+                    ? AppUtils.extractBranchFromUsn(usn)
+                    : null);
             candidates.add(CandidateItem(
               registrationId: reg['id'] as String,
               teamId: teamId,
@@ -129,7 +135,12 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
         } else {
           final name = student?['name'] as String? ?? 'Student';
           final usn = student?['usn'] as String? ?? '';
-          final branch = student?['branch'] as String?;
+          final rawBranch = student?['branch'] as String?;
+          final branch = (rawBranch != null && rawBranch.trim().isNotEmpty)
+              ? AppUtils.mapUsnBranchToOfficial(rawBranch)
+              : (usn.trim().isNotEmpty
+                  ? AppUtils.extractBranchFromUsn(usn)
+                  : null);
           candidates.add(CandidateItem(
             registrationId: reg['id'] as String,
             teamId: null,
@@ -631,9 +642,13 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
         insertedCount++;
 
         // Insert into event_points table for leaderboard aggregation
-        if (candidate.branch != null) {
+        final candidateBranch = candidate.branch ??
+            (candidate.usn != null && candidate.usn!.trim().isNotEmpty
+                ? AppUtils.extractBranchFromUsn(candidate.usn!)
+                : null);
+        if (candidateBranch != null && candidateBranch.trim().isNotEmpty) {
           final officialBranch =
-              AppUtils.mapUsnBranchToOfficial(candidate.branch!);
+              AppUtils.mapUsnBranchToOfficial(candidateBranch);
           await SupabaseConfig.client.from(SupabaseTables.eventPoints).insert({
             'event_id': widget.eventId,
             'branch': officialBranch,
@@ -673,6 +688,7 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
       ref.invalidate(eventDetailProvider(widget.eventId));
       ref.invalidate(eventsListProvider);
       ref.invalidate(leaderboardProvider);
+      ref.invalidate(departmentRankingsProvider);
       ref.invalidate(publishedEventsProvider);
       ref.invalidate(eventResultsProvider(widget.eventId));
       ref.invalidate(eventResultsWithDetailsProvider(widget.eventId));

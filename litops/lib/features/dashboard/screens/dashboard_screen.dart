@@ -11,6 +11,7 @@ import '../../../core/enums/enums.dart';
 import '../../../core/models/models.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/utils/app_utils.dart';
 import '../../../core/config/role_config.dart';
 import 'package:intl/intl.dart';
 
@@ -799,44 +800,6 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHighlights(BuildContext context) {
-    return ClayCard(
-      color: LitColors.clay2,
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.stars_rounded, color: LitColors.ember, size: 24),
-          const SizedBox(height: 12),
-          Text(
-            'Pentathlon Registrations Closing Soon!',
-            style: GoogleFonts.fredoka(
-              color: LitColors.bone,
-              fontSize: 14.5,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Only 12 slots left for the main stage event.',
-            style: GoogleFonts.plusJakartaSans(
-              color: LitColors.ash,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 14),
-          ClayButton(
-            onPressed: () => context.go('/events'),
-            width: 110,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: const Text('View Event'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildAdminConsoleCard(BuildContext context) {
     final r = context.r;
     return ClayCard(
@@ -1050,10 +1013,11 @@ class LiveRankingsWidget extends ConsumerWidget {
                               getTitlesWidget: (value, meta) {
                                 final index = value.toInt();
                                 if (index < 0 || index >= allRankings.take(8).length) return const SizedBox.shrink();
+                                final b = AppUtils.mapUsnBranchToOfficial(allRankings[index].branch);
                                 return Padding(
                                   padding: EdgeInsets.only(top: r.h(8.0)),
                                   child: Text(
-                                    allRankings[index].branch,
+                                    b,
                                     style: TextStyle(color: LitColors.ash, fontSize: r.sp(8), fontWeight: FontWeight.bold),
                                   ),
                                 );
@@ -1112,7 +1076,7 @@ class LiveRankingsWidget extends ConsumerWidget {
                               Row(
                                 children: [
                                   Text(
-                                    '${index + 1} · ${rank.branch}',
+                                    '${index + 1} · ${AppUtils.mapUsnBranchToOfficial(rank.branch)}',
                                     style: GoogleFonts.plusJakartaSans(
                                       fontWeight: FontWeight.bold,
                                       fontSize: r.sp(12),
