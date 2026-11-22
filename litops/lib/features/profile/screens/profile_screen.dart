@@ -12,7 +12,6 @@ import '../../../core/enums/enums.dart';
 import '../widgets/profile_picture_editor.dart';
 import '../../../core/utils/responsive.dart';
 
-
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -58,8 +57,13 @@ class ProfileScreen extends ConsumerWidget {
       }
     }
 
-    final String friendlyYear = profile.year != null 
-        ? ['First Year', 'Second Year', 'Third Year', 'Fourth Year'][profile.year! - 1]
+    final String friendlyYear = profile.year != null
+        ? [
+            'First Year',
+            'Second Year',
+            'Third Year',
+            'Fourth Year'
+          ][profile.year! - 1]
         : 'Not set';
 
     final r = context.r;
@@ -99,10 +103,12 @@ class ProfileScreen extends ConsumerWidget {
                     width: r.w(120),
                     height: r.w(120),
                     decoration: BoxDecoration(
-                      color: (profile.photoUrl != null && !profile.photoUrl!.startsWith('avatar:'))
+                      color: (profile.photoUrl != null &&
+                              !profile.photoUrl!.startsWith('avatar:'))
                           ? Colors.grey.shade900
                           : null,
-                      gradient: (profile.photoUrl == null || profile.photoUrl!.startsWith('avatar:'))
+                      gradient: (profile.photoUrl == null ||
+                              profile.photoUrl!.startsWith('avatar:'))
                           ? LinearGradient(
                               colors: _avatarGradients[avatarIndex],
                               begin: Alignment.topLeft,
@@ -113,21 +119,25 @@ class ProfileScreen extends ConsumerWidget {
                       border: Border.all(color: LitColors.border, width: 4),
                       boxShadow: [
                         BoxShadow(
-                          color: (profile.photoUrl == null || profile.photoUrl!.startsWith('avatar:'))
-                              ? _avatarGradients[avatarIndex][0].withValues(alpha: 0.4)
+                          color: (profile.photoUrl == null ||
+                                  profile.photoUrl!.startsWith('avatar:'))
+                              ? _avatarGradients[avatarIndex][0]
+                                  .withValues(alpha: 0.4)
                               : Colors.black.withValues(alpha: 0.5),
                           blurRadius: r.radius(28),
                           offset: Offset(0, r.h(10)),
                         ),
                       ],
-                      image: (profile.photoUrl != null && !profile.photoUrl!.startsWith('avatar:'))
+                      image: (profile.photoUrl != null &&
+                              !profile.photoUrl!.startsWith('avatar:'))
                           ? DecorationImage(
                               image: NetworkImage(profile.photoUrl!),
                               fit: BoxFit.cover,
                             )
                           : null,
                     ),
-                    child: (profile.photoUrl == null || profile.photoUrl!.startsWith('avatar:'))
+                    child: (profile.photoUrl == null ||
+                            profile.photoUrl!.startsWith('avatar:'))
                         ? Icon(
                             _avatarIcons[avatarIndex],
                             size: r.icon(56),
@@ -166,23 +176,26 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
             SizedBox(height: r.h(8)),
-            
+
             // Badges Row
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Post Badge
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: r.w(14), vertical: r.h(6)),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: r.w(14), vertical: r.h(6)),
                   decoration: BoxDecoration(
                     color: LitColors.ember.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(r.radius(20)),
-                    border: Border.all(color: LitColors.ember.withValues(alpha: 0.4)),
+                    border: Border.all(
+                        color: LitColors.ember.withValues(alpha: 0.4)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.stars_rounded, color: LitColors.ember, size: r.icon(14)),
+                      Icon(Icons.stars_rounded,
+                          color: LitColors.ember, size: r.icon(14)),
                       SizedBox(width: r.w(6)),
                       Text(
                         profile.role.label,
@@ -199,16 +212,19 @@ class ProfileScreen extends ConsumerWidget {
                 // Year Badge
                 if (profile.year != null)
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: r.w(14), vertical: r.h(6)),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: r.w(14), vertical: r.h(6)),
                     decoration: BoxDecoration(
                       color: LitColors.moss.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(r.radius(20)),
-                      border: Border.all(color: LitColors.moss.withValues(alpha: 0.35)),
+                      border: Border.all(
+                          color: LitColors.moss.withValues(alpha: 0.35)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.school_rounded, color: LitColors.moss, size: r.icon(14)),
+                        Icon(Icons.school_rounded,
+                            color: LitColors.moss, size: r.icon(14)),
                         SizedBox(width: r.w(6)),
                         Text(
                           friendlyYear,
@@ -247,7 +263,8 @@ class ProfileScreen extends ConsumerWidget {
                     icon: Icons.cake_outlined,
                     title: 'Date of Birth',
                     value: profile.dateOfBirth != null
-                        ? DateFormat('MMMM d, yyyy').format(profile.dateOfBirth!)
+                        ? DateFormat('MMMM d, yyyy')
+                            .format(profile.dateOfBirth!)
                         : 'Not set',
                   ),
                   if (!profile.role.isSuperAdmin) ...[
@@ -289,7 +306,8 @@ class ProfileScreen extends ConsumerWidget {
                         color: LitColors.moss.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.devices_rounded, color: LitColors.moss, size: 20),
+                      child: const Icon(Icons.devices_rounded,
+                          color: LitColors.moss, size: 20),
                     ),
                     title: Text(
                       'Current Active Session',
@@ -316,7 +334,8 @@ class ProfileScreen extends ConsumerWidget {
                           color: LitColors.amber.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.dvr_rounded, color: LitColors.amber, size: 20),
+                        child: const Icon(Icons.dvr_rounded,
+                            color: LitColors.amber, size: 20),
                       ),
                       title: Text(
                         'Manage Active Sessions',
@@ -326,11 +345,13 @@ class ProfileScreen extends ConsumerWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      trailing: const Icon(Icons.chevron_right, color: LitColors.amber),
+                      trailing: const Icon(Icons.chevron_right,
+                          color: LitColors.amber),
                       onTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('All device sessions are currently active and healthy.'),
+                            content: Text(
+                                'All device sessions are currently active and healthy.'),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
@@ -343,7 +364,8 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // ── SYSTEM SETTINGS & UTILITIES ──
-            _buildSectionHeader('App Settings & Verification', Icons.settings_outlined),
+            _buildSectionHeader(
+                'App Settings & Verification', Icons.settings_outlined),
             const SizedBox(height: 12),
             _buildClayCard(
               child: Column(
@@ -377,7 +399,8 @@ class ProfileScreen extends ConsumerWidget {
                               color: LitColors.ember,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.import_contacts, color: Colors.white),
+                            child: const Icon(Icons.import_contacts,
+                                color: Colors.white),
                           ),
                         ),
                         children: [
@@ -399,18 +422,19 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showEditProfileDialog(BuildContext context, WidgetRef ref, Profile profile) {
+  void _showEditProfileDialog(
+      BuildContext context, WidgetRef ref, Profile profile) {
     final nameCtrl = TextEditingController(text: profile.fullName);
     final phoneCtrl = TextEditingController(text: profile.phone ?? '');
     final emailCtrl = TextEditingController(text: profile.email);
     final usnCtrl = TextEditingController(text: profile.usn ?? '');
     final branchCtrl = TextEditingController(text: profile.branch ?? '');
     final deptCtrl = TextEditingController(text: profile.department ?? '');
-    
+
     DateTime? selectedDob = profile.dateOfBirth;
     int? selectedYear = profile.year;
     UserRole selectedRole = profile.role;
-    
+
     final isSuperAdmin = profile.role.isSuperAdmin;
 
     showDialog(
@@ -420,10 +444,13 @@ class ProfileScreen extends ConsumerWidget {
           builder: (context, setState) {
             return AlertDialog(
               backgroundColor: const Color(0xFF1D1A18),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
               title: Text(
                 'Edit Profile Details',
-                style: GoogleFonts.fredoka(color: const Color(0xFFF3ECE2), fontWeight: FontWeight.bold),
+                style: GoogleFonts.fredoka(
+                    color: const Color(0xFFF3ECE2),
+                    fontWeight: FontWeight.bold),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -440,12 +467,18 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Date of Birth', style: TextStyle(color: Color(0xFF8C857C), fontSize: 12)),
+                      title: const Text('Date of Birth',
+                          style: TextStyle(
+                              color: Color(0xFF8C857C), fontSize: 12)),
                       subtitle: Text(
-                        selectedDob != null ? DateFormat('yyyy-MM-dd').format(selectedDob!) : 'Not set',
-                        style: const TextStyle(color: Color(0xFFF3ECE2), fontSize: 15),
+                        selectedDob != null
+                            ? DateFormat('yyyy-MM-dd').format(selectedDob!)
+                            : 'Not set',
+                        style: const TextStyle(
+                            color: Color(0xFFF3ECE2), fontSize: 15),
                       ),
-                      trailing: const Icon(Icons.calendar_month, color: LitColors.ember),
+                      trailing: const Icon(Icons.calendar_month,
+                          color: LitColors.ember),
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
@@ -479,7 +512,10 @@ class ProfileScreen extends ConsumerWidget {
                         padding: EdgeInsets.only(top: 12.0),
                         child: Text(
                           'Other details can only be modified by the Super Admin.',
-                          style: TextStyle(color: Color(0xFF8C857C), fontSize: 11, fontStyle: FontStyle.italic),
+                          style: TextStyle(
+                              color: Color(0xFF8C857C),
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic),
                         ),
                       ),
                     ] else ...[
@@ -539,7 +575,12 @@ class ProfileScreen extends ConsumerWidget {
                         items: [1, 2, 3, 4].map((y) {
                           return DropdownMenuItem<int>(
                             value: y,
-                            child: Text(['1st Year', '2nd Year', '3rd Year', '4th Year'][y - 1]),
+                            child: Text([
+                              '1st Year',
+                              '2nd Year',
+                              '3rd Year',
+                              '4th Year'
+                            ][y - 1]),
                           );
                         }).toList(),
                         onChanged: (val) {
@@ -578,7 +619,8 @@ class ProfileScreen extends ConsumerWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: Color(0xFF8C857C))),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Color(0xFF8C857C))),
                 ),
                 ElevatedButton(
                   onPressed: () async {
@@ -587,7 +629,8 @@ class ProfileScreen extends ConsumerWidget {
                       'full_name': nameCtrl.text.trim(),
                     };
                     if (selectedDob != null) {
-                      updateData['date_of_birth'] = selectedDob!.toIso8601String().split('T').first;
+                      updateData['date_of_birth'] =
+                          selectedDob!.toIso8601String().split('T').first;
                     }
                     if (isSuperAdmin) {
                       updateData['email'] = emailCtrl.text.trim();
@@ -598,13 +641,16 @@ class ProfileScreen extends ConsumerWidget {
                       updateData['year'] = selectedYear;
                       updateData['role'] = selectedRole.value;
                     }
-                    
+
                     try {
-                      await ref.read(authStateProvider.notifier).updateProfile(updateData);
+                      await ref
+                          .read(authStateProvider.notifier)
+                          .updateProfile(updateData);
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: const Text('Profile updated successfully!'),
+                            content:
+                                const Text('Profile updated successfully!'),
                             backgroundColor: LitColors.moss,
                             behavior: SnackBarBehavior.floating,
                           ),
@@ -632,7 +678,8 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _pickAndEditAvatar(BuildContext context, WidgetRef ref, Profile profile) async {
+  Future<void> _pickAndEditAvatar(
+      BuildContext context, WidgetRef ref, Profile profile) async {
     final ImagePicker picker = ImagePicker();
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -650,12 +697,14 @@ class ProfileScreen extends ConsumerWidget {
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library, color: LitColors.bone),
-                title: Text('Choose from Gallery', style: GoogleFonts.plusJakartaSans(color: LitColors.bone)),
+                title: Text('Choose from Gallery',
+                    style: GoogleFonts.plusJakartaSans(color: LitColors.bone)),
                 onTap: () => Navigator.pop(context, ImageSource.gallery),
               ),
               ListTile(
                 leading: const Icon(Icons.camera_alt, color: LitColors.bone),
-                title: Text('Take Photo', style: GoogleFonts.plusJakartaSans(color: LitColors.bone)),
+                title: Text('Take Photo',
+                    style: GoogleFonts.plusJakartaSans(color: LitColors.bone)),
                 onTap: () => Navigator.pop(context, ImageSource.camera),
               ),
             ],
@@ -671,7 +720,8 @@ class ProfileScreen extends ConsumerWidget {
 
     if (!context.mounted) return;
 
-    final Uint8List? croppedBytes = await ProfilePictureEditor.show(context, imageFile);
+    final Uint8List? croppedBytes =
+        await ProfilePictureEditor.show(context, imageFile);
     if (croppedBytes == null) return;
 
     if (!context.mounted) return;
@@ -831,7 +881,8 @@ class ProfileScreen extends ConsumerWidget {
             fontSize: 12,
           ),
         ),
-        trailing: const Icon(Icons.chevron_right, color: LitColors.ash, size: 18),
+        trailing:
+            const Icon(Icons.chevron_right, color: LitColors.ash, size: 18),
       ),
     );
   }
@@ -846,5 +897,3 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 }
-
-
