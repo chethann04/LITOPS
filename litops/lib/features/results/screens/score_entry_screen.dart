@@ -49,7 +49,8 @@ class PositionEntry {
     required this.defaultPoints,
     this.selectedRegistrationId,
     int? initialPoints,
-  }) : pointsController = TextEditingController(text: (initialPoints ?? defaultPoints).toString());
+  }) : pointsController = TextEditingController(
+            text: (initialPoints ?? defaultPoints).toString());
 }
 
 class ScoreEntryScreen extends ConsumerStatefulWidget {
@@ -95,7 +96,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
       // 2. Load registrations
       final regData = await SupabaseConfig.client
           .from(SupabaseTables.registrations)
-          .select('id, student_id, team_id, student_master(id, name, usn, branch), teams(id, team_name)')
+          .select(
+              'id, student_id, team_id, student_master(id, name, usn, branch), teams(id, team_name)')
           .eq('event_id', widget.eventId)
           .eq('is_cancelled', false);
 
@@ -118,7 +120,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
               registrationId: reg['id'] as String,
               teamId: teamId,
               title: teamName,
-              subtitle: 'Team • ${student?['name'] ?? ''} (${branch ?? 'General'})',
+              subtitle:
+                  'Team • ${student?['name'] ?? ''} (${branch ?? 'General'})',
               branch: branch,
               usn: usn,
             ));
@@ -147,7 +150,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
           .eq('event_id', widget.eventId)
           .order('created_at', ascending: true);
 
-      final existingList = List<Map<String, dynamic>>.from(existingResults as List);
+      final existingList =
+          List<Map<String, dynamic>>.from(existingResults as List);
 
       _positionEntries.clear();
       if (existingList.isNotEmpty) {
@@ -156,7 +160,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
           final posKey = res['position'] as String? ?? 'winner';
           final scoreNum = res['score'] as num?;
           final pts = scoreNum?.toInt() ?? _getDefaultPointsForIndex(i);
-          final title = res['remarks'] as String? ?? _getDefaultTitleForIndex(i);
+          final title =
+              res['remarks'] as String? ?? _getDefaultTitleForIndex(i);
 
           _positionEntries.add(PositionEntry(
             id: 'pos_${DateTime.now().millisecondsSinceEpoch}_$i',
@@ -282,10 +287,12 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
             final r = Responsive(context);
             return Container(
               height: MediaQuery.of(context).size.height * 0.75,
-              padding: EdgeInsets.fromLTRB(r.w(16), r.h(16), r.w(16), r.h(16) + r.bottomSafeArea),
+              padding: EdgeInsets.fromLTRB(
+                  r.w(16), r.h(16), r.w(16), r.h(16) + r.bottomSafeArea),
               decoration: BoxDecoration(
                 color: const Color(0xFF161312),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(r.radius(24))),
+                borderRadius:
+                    BorderRadius.vertical(top: Radius.circular(r.radius(24))),
                 border: const Border(
                   top: BorderSide(color: Color(0xFF2B2624), width: 1.5),
                 ),
@@ -327,11 +334,14 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                     style: const TextStyle(color: LitColors.bone),
                     decoration: InputDecoration(
                       hintText: 'Search by name, USN, or branch...',
-                      hintStyle: const TextStyle(color: LitColors.ash, fontSize: 13),
-                      prefixIcon: const Icon(Icons.search, color: LitColors.ash, size: 20),
+                      hintStyle:
+                          const TextStyle(color: LitColors.ash, fontSize: 13),
+                      prefixIcon: const Icon(Icons.search,
+                          color: LitColors.ash, size: 20),
                       filled: true,
                       fillColor: const Color(0xFF1E1A18),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: const BorderSide(color: Color(0xFF2E2927)),
@@ -350,7 +360,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                           filteredCandidates = _candidates.where((c) {
                             return c.title.toLowerCase().contains(q) ||
                                 (c.usn?.toLowerCase().contains(q) ?? false) ||
-                                (c.branch?.toLowerCase().contains(q) ?? false) ||
+                                (c.branch?.toLowerCase().contains(q) ??
+                                    false) ||
                                 c.subtitle.toLowerCase().contains(q);
                           }).toList();
                         }
@@ -363,40 +374,55 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                         ? Center(
                             child: Text(
                               'No registered participants found',
-                              style: GoogleFonts.plusJakartaSans(color: LitColors.ash),
+                              style: GoogleFonts.plusJakartaSans(
+                                  color: LitColors.ash),
                             ),
                           )
                         : ListView.separated(
                             itemCount: filteredCandidates.length,
-                            separatorBuilder: (_, __) => const Divider(color: Color(0xFF24201E), height: 1),
+                            separatorBuilder: (_, __) => const Divider(
+                                color: Color(0xFF24201E), height: 1),
                             itemBuilder: (ctx, i) {
                               final candidate = filteredCandidates[i];
-                              final isSelected = entry.selectedRegistrationId == candidate.registrationId;
+                              final isSelected = entry.selectedRegistrationId ==
+                                  candidate.registrationId;
 
                               // Check if selected by another position
                               final usedByOther = _positionEntries.any(
-                                (p) => p.id != entry.id && p.selectedRegistrationId == candidate.registrationId,
+                                (p) =>
+                                    p.id != entry.id &&
+                                    p.selectedRegistrationId ==
+                                        candidate.registrationId,
                               );
 
                               return ListTile(
                                 dense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: r.w(8), vertical: r.h(2)),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: r.w(8), vertical: r.h(2)),
                                 leading: CircleAvatar(
                                   radius: 18,
                                   backgroundColor: isSelected
                                       ? LitColors.ember.withValues(alpha: 0.25)
                                       : const Color(0xFF26211F),
                                   child: Icon(
-                                    candidate.teamId != null ? Icons.group : Icons.person,
+                                    candidate.teamId != null
+                                        ? Icons.group
+                                        : Icons.person,
                                     size: 18,
-                                    color: isSelected ? LitColors.ember : LitColors.ash,
+                                    color: isSelected
+                                        ? LitColors.ember
+                                        : LitColors.ash,
                                   ),
                                 ),
                                 title: Text(
                                   candidate.title,
                                   style: GoogleFonts.plusJakartaSans(
-                                    color: isSelected ? LitColors.ember : LitColors.bone,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                    color: isSelected
+                                        ? LitColors.ember
+                                        : LitColors.bone,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.w600,
                                     fontSize: r.sp(13),
                                   ),
                                 ),
@@ -412,11 +438,13 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                                   children: [
                                     if (candidate.branch != null)
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
                                         margin: const EdgeInsets.only(right: 6),
                                         decoration: BoxDecoration(
                                           color: LitColors.clay2,
-                                          borderRadius: BorderRadius.circular(6),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
                                         ),
                                         child: Text(
                                           candidate.branch!,
@@ -436,12 +464,14 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                                         ),
                                       )
                                     else if (isSelected)
-                                      const Icon(Icons.check_circle, color: LitColors.moss, size: 20),
+                                      const Icon(Icons.check_circle,
+                                          color: LitColors.moss, size: 20),
                                   ],
                                 ),
                                 onTap: () {
                                   setState(() {
-                                    entry.selectedRegistrationId = candidate.registrationId;
+                                    entry.selectedRegistrationId =
+                                        candidate.registrationId;
                                   });
                                   Navigator.pop(ctx);
                                 },
@@ -462,7 +492,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
     if (_positionEntries.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please add at least one position (Winner/Runner-up) before publishing!'),
+          content: Text(
+              'Please add at least one position (Winner/Runner-up) before publishing!'),
           backgroundColor: Colors.amber,
         ),
       );
@@ -474,7 +505,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
       if (pos.selectedRegistrationId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Please select a participant for "${pos.positionName}" or remove it.'),
+            content: Text(
+                'Please select a participant for "${pos.positionName}" or remove it.'),
             backgroundColor: Colors.amber,
           ),
         );
@@ -485,7 +517,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
       if (pts == null || pts < 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Please enter valid points (>= 0) for "${pos.positionName}".'),
+            content: Text(
+                'Please enter valid points (>= 0) for "${pos.positionName}".'),
             backgroundColor: Colors.amber,
           ),
         );
@@ -494,12 +527,14 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
     }
 
     // Check duplicate assignment
-    final assignedIds = _positionEntries.map((p) => p.selectedRegistrationId!).toList();
+    final assignedIds =
+        _positionEntries.map((p) => p.selectedRegistrationId!).toList();
     final uniqueIds = assignedIds.toSet();
     if (uniqueIds.length != assignedIds.length) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('The same participant cannot be assigned to multiple positions!'),
+          content: Text(
+              'The same participant cannot be assigned to multiple positions!'),
           backgroundColor: Colors.amber,
         ),
       );
@@ -521,28 +556,33 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
             const SizedBox(width: 8),
             Text(
               'Publish Results?',
-              style: GoogleFonts.fredoka(color: LitColors.bone, fontWeight: FontWeight.bold),
+              style: GoogleFonts.fredoka(
+                  color: LitColors.bone, fontWeight: FontWeight.bold),
             ),
           ],
         ),
         content: Text(
           'This will publish ${_positionEntries.length} position(s) for "${_event?.name ?? 'Event'}", update the event status to Results Published, and credit Sarvottam Leaderboard points.',
-          style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: 13, height: 1.4),
+          style: GoogleFonts.plusJakartaSans(
+              color: LitColors.ash, fontSize: 13, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: LitColors.ash)),
+            child: Text('Cancel',
+                style: GoogleFonts.plusJakartaSans(color: LitColors.ash)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: LitColors.ember,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
               'Publish Now',
-              style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold),
+              style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -574,7 +614,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
           (c) => c.registrationId == entry.selectedRegistrationId,
         );
 
-        final points = int.tryParse(entry.pointsController.text.trim()) ?? entry.defaultPoints;
+        final points = int.tryParse(entry.pointsController.text.trim()) ??
+            entry.defaultPoints;
 
         // Insert into results table
         await SupabaseConfig.client.from(SupabaseTables.results).insert({
@@ -591,7 +632,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
 
         // Insert into event_points table for leaderboard aggregation
         if (candidate.branch != null) {
-          final officialBranch = AppUtils.mapUsnBranchToOfficial(candidate.branch!);
+          final officialBranch =
+              AppUtils.mapUsnBranchToOfficial(candidate.branch!);
           await SupabaseConfig.client.from(SupabaseTables.eventPoints).insert({
             'event_id': widget.eventId,
             'branch': officialBranch,
@@ -621,13 +663,10 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
       }
 
       if (!statusUpdatedViaRpc) {
-        await SupabaseConfig.client
-            .from(SupabaseTables.events)
-            .update({
-              'status': EventStatus.resultsPublished.value,
-              'updated_at': DateTime.now().toIso8601String(),
-            })
-            .eq('id', widget.eventId);
+        await SupabaseConfig.client.from(SupabaseTables.events).update({
+          'status': EventStatus.resultsPublished.value,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', widget.eventId);
       }
 
       // 4. Invalidate all relevant providers for real-time app-wide synchronization
@@ -641,7 +680,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('🎉 Published $insertedCount position(s)! Leaderboard updated.'),
+            content: Text(
+                '🎉 Published $insertedCount position(s)! Leaderboard updated.'),
             backgroundColor: LitColors.moss,
           ),
         );
@@ -685,7 +725,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
       decoration: BoxDecoration(
         color: medalColor.withValues(alpha: 0.12),
         shape: BoxShape.circle,
-        border: Border.all(color: medalColor.withValues(alpha: 0.35), width: 1.2),
+        border:
+            Border.all(color: medalColor.withValues(alpha: 0.35), width: 1.2),
       ),
       child: Center(
         child: Text(medal, style: TextStyle(fontSize: r.sp(18))),
@@ -708,7 +749,9 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
             icon: const Icon(Icons.arrow_back, color: LitColors.bone),
             onPressed: () => Navigator.pop(context),
           ),
-          title: const Text('Access Denied', style: TextStyle(color: LitColors.bone, fontWeight: FontWeight.bold)),
+          title: const Text('Access Denied',
+              style: TextStyle(
+                  color: LitColors.bone, fontWeight: FontWeight.bold)),
         ),
         body: const Center(
           child: EmptyView(
@@ -760,9 +803,11 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                     ? const SizedBox(
                         width: 14,
                         height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
                       )
-                    : const Icon(Icons.send_rounded, size: 14, color: Colors.white),
+                    : const Icon(Icons.send_rounded,
+                        size: 14, color: Colors.white),
                 label: Text(
                   _saving ? 'Publishing...' : 'Publish',
                   style: GoogleFonts.plusJakartaSans(
@@ -773,8 +818,10 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: LitColors.ember,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: r.w(12), vertical: r.h(8)),
                 ),
               ),
             ),
@@ -789,7 +836,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.group_off, color: LitColors.ash, size: 48),
+                        const Icon(Icons.group_off,
+                            color: LitColors.ash, size: 48),
                         const SizedBox(height: 16),
                         Text(
                           'No Registrations Found',
@@ -802,7 +850,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                         const SizedBox(height: 8),
                         Text(
                           'There are no active participants registered for this event yet.',
-                          style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: r.sp(12)),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.ash, fontSize: r.sp(12)),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -814,16 +863,20 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                     // Header info card
                     Container(
                       width: double.infinity,
-                      margin: EdgeInsets.fromLTRB(r.w(14), r.h(12), r.w(14), r.h(6)),
-                      padding: EdgeInsets.symmetric(horizontal: r.w(14), vertical: r.h(12)),
+                      margin: EdgeInsets.fromLTRB(
+                          r.w(14), r.h(12), r.w(14), r.h(6)),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: r.w(14), vertical: r.h(12)),
                       decoration: BoxDecoration(
                         color: const Color(0xFF171312),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF282220), width: 1.2),
+                        border: Border.all(
+                            color: const Color(0xFF282220), width: 1.2),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.military_tech_rounded, color: LitColors.amber, size: r.icon(22)),
+                          Icon(Icons.military_tech_rounded,
+                              color: LitColors.amber, size: r.icon(22)),
                           SizedBox(width: r.w(10)),
                           Expanded(
                             child: Column(
@@ -849,7 +902,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                           ),
                           TextButton.icon(
                             onPressed: _addPosition,
-                            icon: const Icon(Icons.add, size: 16, color: LitColors.ember),
+                            icon: const Icon(Icons.add,
+                                size: 16, color: LitColors.ember),
                             label: Text(
                               'Add',
                               style: GoogleFonts.plusJakartaSans(
@@ -866,14 +920,19 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                     // Position Entries List
                     Expanded(
                       child: ListView.builder(
-                        padding: EdgeInsets.fromLTRB(r.w(14), r.h(6), r.w(14), r.h(80)),
+                        padding: EdgeInsets.fromLTRB(
+                            r.w(14), r.h(6), r.w(14), r.h(80)),
                         itemCount: _positionEntries.length,
                         itemBuilder: (ctx, i) {
                           final entry = _positionEntries[i];
-                          final assignedCandidate = entry.selectedRegistrationId == null
+                          final assignedCandidate = entry
+                                      .selectedRegistrationId ==
+                                  null
                               ? null
                               : _candidates.cast<CandidateItem?>().firstWhere(
-                                    (c) => c?.registrationId == entry.selectedRegistrationId,
+                                    (c) =>
+                                        c?.registrationId ==
+                                        entry.selectedRegistrationId,
                                     orElse: () => null,
                                   );
 
@@ -901,7 +960,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                                       SizedBox(width: r.w(10)),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               entry.positionName,
@@ -935,33 +995,42 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                                           textAlign: TextAlign.center,
                                           decoration: InputDecoration(
                                             labelText: 'Points',
-                                            labelStyle: GoogleFonts.plusJakartaSans(
+                                            labelStyle:
+                                                GoogleFonts.plusJakartaSans(
                                               color: LitColors.ash,
                                               fontSize: r.sp(10),
                                             ),
                                             suffixText: 'pts',
-                                            suffixStyle: GoogleFonts.jetBrainsMono(
+                                            suffixStyle:
+                                                GoogleFonts.jetBrainsMono(
                                               color: LitColors.ash,
                                               fontSize: r.sp(9),
                                             ),
                                             isDense: true,
-                                            contentPadding: EdgeInsets.symmetric(
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
                                               horizontal: r.w(8),
                                               vertical: r.h(8),
                                             ),
                                             filled: true,
                                             fillColor: const Color(0xFF221E1C),
                                             border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(8),
-                                              borderSide: const BorderSide(color: Color(0xFF332B28)),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              borderSide: const BorderSide(
+                                                  color: Color(0xFF332B28)),
                                             ),
                                             enabledBorder: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(8),
-                                              borderSide: const BorderSide(color: Color(0xFF332B28)),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              borderSide: const BorderSide(
+                                                  color: Color(0xFF332B28)),
                                             ),
                                             focusedBorder: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(8),
-                                              borderSide: const BorderSide(color: LitColors.ember),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              borderSide: const BorderSide(
+                                                  color: LitColors.ember),
                                             ),
                                           ),
                                         ),
@@ -969,7 +1038,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                                       SizedBox(width: r.w(6)),
                                       // Delete Position Button
                                       IconButton(
-                                        icon: const Icon(Icons.delete_outline, color: LitColors.ash, size: 20),
+                                        icon: const Icon(Icons.delete_outline,
+                                            color: LitColors.ash, size: 20),
                                         splashRadius: 18,
                                         onPressed: () => _removePosition(i),
                                       ),
@@ -983,13 +1053,16 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                                     borderRadius: BorderRadius.circular(10),
                                     child: Container(
                                       width: double.infinity,
-                                      padding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(10)),
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: r.w(12),
+                                          vertical: r.h(10)),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFF141110),
                                         borderRadius: BorderRadius.circular(10),
                                         border: Border.all(
                                           color: assignedCandidate != null
-                                              ? LitColors.moss.withValues(alpha: 0.4)
+                                              ? LitColors.moss
+                                                  .withValues(alpha: 0.4)
                                               : const Color(0xFF2E2724),
                                           width: 1,
                                         ),
@@ -997,43 +1070,59 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                                       child: assignedCandidate == null
                                           ? Row(
                                               children: [
-                                                const Icon(Icons.person_add_alt_1_outlined, color: LitColors.ash, size: 18),
+                                                const Icon(
+                                                    Icons
+                                                        .person_add_alt_1_outlined,
+                                                    color: LitColors.ash,
+                                                    size: 18),
                                                 SizedBox(width: r.w(8)),
                                                 Expanded(
                                                   child: Text(
                                                     'Tap to select participant or team...',
-                                                    style: GoogleFonts.plusJakartaSans(
+                                                    style: GoogleFonts
+                                                        .plusJakartaSans(
                                                       color: LitColors.ash,
                                                       fontSize: r.sp(12),
                                                     ),
                                                   ),
                                                 ),
-                                                const Icon(Icons.arrow_drop_down, color: LitColors.ash),
+                                                const Icon(
+                                                    Icons.arrow_drop_down,
+                                                    color: LitColors.ash),
                                               ],
                                             )
                                           : Row(
                                               children: [
                                                 Icon(
-                                                  assignedCandidate.teamId != null ? Icons.group : Icons.person,
+                                                  assignedCandidate.teamId !=
+                                                          null
+                                                      ? Icons.group
+                                                      : Icons.person,
                                                   color: LitColors.moss,
                                                   size: 18,
                                                 ),
                                                 SizedBox(width: r.w(8)),
                                                 Expanded(
                                                   child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
                                                     children: [
                                                       Text(
                                                         assignedCandidate.title,
-                                                        style: GoogleFonts.plusJakartaSans(
+                                                        style: GoogleFonts
+                                                            .plusJakartaSans(
                                                           color: LitColors.bone,
-                                                          fontWeight: FontWeight.bold,
+                                                          fontWeight:
+                                                              FontWeight.bold,
                                                           fontSize: r.sp(13),
                                                         ),
                                                       ),
                                                       Text(
-                                                        assignedCandidate.subtitle,
-                                                        style: GoogleFonts.plusJakartaSans(
+                                                        assignedCandidate
+                                                            .subtitle,
+                                                        style: GoogleFonts
+                                                            .plusJakartaSans(
                                                           color: LitColors.ash,
                                                           fontSize: r.sp(11),
                                                         ),
@@ -1041,25 +1130,42 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                                                     ],
                                                   ),
                                                 ),
-                                                if (assignedCandidate.branch != null)
+                                                if (assignedCandidate.branch !=
+                                                    null)
                                                   Container(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                                    margin: const EdgeInsets.only(right: 6),
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 3),
+                                                    margin:
+                                                        const EdgeInsets.only(
+                                                            right: 6),
                                                     decoration: BoxDecoration(
-                                                      color: LitColors.ember.withValues(alpha: 0.15),
-                                                      borderRadius: BorderRadius.circular(6),
-                                                      border: Border.all(color: LitColors.ember.withValues(alpha: 0.3)),
+                                                      color: LitColors.ember
+                                                          .withValues(
+                                                              alpha: 0.15),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              6),
+                                                      border: Border.all(
+                                                          color: LitColors.ember
+                                                              .withValues(
+                                                                  alpha: 0.3)),
                                                     ),
                                                     child: Text(
                                                       assignedCandidate.branch!,
-                                                      style: GoogleFonts.jetBrainsMono(
+                                                      style: GoogleFonts
+                                                          .jetBrainsMono(
                                                         color: LitColors.ember,
-                                                        fontWeight: FontWeight.bold,
+                                                        fontWeight:
+                                                            FontWeight.bold,
                                                         fontSize: 11,
                                                       ),
                                                     ),
                                                   ),
-                                                const Icon(Icons.edit, color: LitColors.ash, size: 16),
+                                                const Icon(Icons.edit,
+                                                    color: LitColors.ash,
+                                                    size: 16),
                                               ],
                                             ),
                                     ),
@@ -1090,7 +1196,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                       flex: 2,
                       child: OutlinedButton.icon(
                         onPressed: _addPosition,
-                        icon: const Icon(Icons.add, size: 16, color: LitColors.bone),
+                        icon: const Icon(Icons.add,
+                            size: 16, color: LitColors.bone),
                         label: Text(
                           '+ Position',
                           style: GoogleFonts.plusJakartaSans(
@@ -1101,7 +1208,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                         ),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Color(0xFF332B28)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
                           padding: EdgeInsets.symmetric(vertical: r.h(12)),
                         ),
                       ),
@@ -1118,10 +1226,12 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                               const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
                               )
                             else ...[
-                              Icon(Icons.emoji_events, size: r.icon(18), color: Colors.white),
+                              Icon(Icons.emoji_events,
+                                  size: r.icon(18), color: Colors.white),
                               SizedBox(width: r.w(8)),
                             ],
                             Text(
