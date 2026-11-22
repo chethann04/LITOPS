@@ -12,7 +12,6 @@ import '../../../core/models/models.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/config/role_config.dart';
-import '../../../core/providers/auto_refresh_provider.dart';
 import 'package:intl/intl.dart';
 
 final activeProfilesStreamProvider = StreamProvider<List<Profile>>((ref) async* {
@@ -83,39 +82,36 @@ final ongoingEventsProvider = StreamProvider<List<Event>>((ref) async* {
   }
 });
 
-final myAssignedEventsProvider = FutureProvider<List<Event>>((ref) async {
-  // Auto-refresh assigned events
-  ref.watch(autoRefreshProvider);
-  
-  final profile = ref.read(currentProfileProvider);
-  if (profile == null) return [];
-  
-  final data = await SupabaseConfig.client
-      .from(SupabaseTables.eventAssignments)
-      .select('*, events!inner(*)')
-      .eq('user_id', profile.id);
+final myAssignedEventsProvider = StreamProvider<List<Event>>((ref) async* {
+  Future<List<Event>> fetchAssigned() async {
+    try {
+      final profile = ref.read(currentProfileProvider);
+      if (profile == null) return [];
       
-  return (data as List).map((e) => Event.fromJson(e['events'] as Map<String, dynamic>)).toList();
+      final data = await SupabaseConfig.client
+          .from(SupabaseTables.eventAssignments)
+          .select('*, events!inner(*)')
+          .eq('user_id', profile.id);
+          
+      return (data as List).map((e) => Event.fromJson(e['events'] as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  yield await fetchAssigned();
+
+  await for (final _ in Stream.periodic(const Duration(seconds: 5))) {
+    yield await fetchAssigned();
+  }
 });
 
-final dashboardStatsProvider = FutureProvider<Map<String, int>>((ref) async {
-  // Auto-refresh stats in real-time
-  ref.watch(autoRefreshProvider);
+final dashboardStatsProvider = StreamProvider<Map<String, int>>((ref) async* {
+  Future<Map<String, int>> fetchStats() async {
+    try {
+      final membersRes = await SupabaseConfig.client.from(SupabaseTables.profiles).select('id').eq('is_active', true);
+      final membersCount = (membersRes as List).length;
 
-  try {
-    final activeArchive = await ref.watch(activeYearlyArchiveProvider.future);
-    final membersRes = await SupabaseConfig.client.from(SupabaseTables.profiles).select('id').eq('is_active', true);
-    final membersCount = (membersRes as List).length;
-
-    if (activeArchive != null) {
-      return {
-        'events': activeArchive.totalEvents,
-        'registrations': activeArchive.totalRegistrations > 0 ? activeArchive.totalRegistrations : 1,
-        'attendance': activeArchive.totalAttendance,
-        'students': membersCount,
-      };
-    } else {
-      // Fall back to counting all if no active archive exists
       final eventsRes = await SupabaseConfig.client.from(SupabaseTables.events).select('id');
       final registrationsRes = await SupabaseConfig.client.from(SupabaseTables.registrations).select('student_id').eq('is_cancelled', false);
       final attendanceRes = await SupabaseConfig.client.from(SupabaseTables.attendance).select('id');
@@ -126,18 +122,25 @@ final dashboardStatsProvider = FutureProvider<Map<String, int>>((ref) async {
 
       return {
         'events': events,
-        'registrations': uniqueRegisteredStudents > 0 ? uniqueRegisteredStudents : 1,
+        'registrations': uniqueRegisteredStudents > 0 ? uniqueRegisteredStudents : 0,
         'attendance': att,
         'students': membersCount,
       };
+    } catch (e) {
+      debugPrint('Error fetching dashboard stats: $e');
+      return {
+        'events': 0,
+        'registrations': 0,
+        'attendance': 0,
+        'students': 0,
+      };
     }
-  } catch (_) {
-    return {
-      'events': 12,
-      'registrations': 458,
-      'attendance': 392,
-      'students': 8,
-    };
+  }
+
+  yield await fetchStats();
+
+  await for (final _ in Stream.periodic(const Duration(seconds: 5))) {
+    yield await fetchStats();
   }
 });
 
@@ -200,7 +203,7 @@ class DashboardScreen extends ConsumerWidget {
                     _FadeIn(delay: 100, child: _buildAdminConsoleCard(context)),
                   ],
                   SizedBox(height: context.r.h(16)),
-                  _FadeIn(delay: 200, child: _buildBentoGrid(context, statsAsync, roleConfig.canViewAppeals && !roleConfig.isSuperAdmin)),
+                  _buildBentoGrid(context, statsAsync, roleConfig.canViewAppeals && !roleConfig.isSuperAdmin),
                   SizedBox(height: context.r.h(24)),
                   _FadeIn(delay: 300, child: _buildSectionTitle(context, 'Quick Services')),
                   SizedBox(height: context.r.h(8)),
@@ -313,13 +316,10 @@ class DashboardScreen extends ConsumerWidget {
                   _buildHeader(context, profile),
                   if (!roleConfig.isJunior) ...[
                     SizedBox(height: r.h(16)),
-                    _FadeIn(
-                      delay: 150,
-                      child: _buildBentoGrid(
-                        context,
-                        statsAsync,
-                        roleConfig.canViewAppeals && !roleConfig.isSuperAdmin,
-                      ),
+                    _buildBentoGrid(
+                      context,
+                      statsAsync,
+                      roleConfig.canViewAppeals && !roleConfig.isSuperAdmin,
                     ),
                   ],
                   SizedBox(height: r.h(24)),
@@ -617,107 +617,109 @@ class DashboardScreen extends ConsumerWidget {
 
   Widget _buildBentoGrid(BuildContext context, AsyncValue<Map<String, int>> statsAsync, bool showAppeals) {
     final r = context.r;
-    return statsAsync.when(
-      data: (stats) {
-        final regCount = stats['registrations'] ?? 1;
-        final attCount = stats['attendance'] ?? 0;
-        final attendanceRate = regCount > 0 ? (attCount / regCount * 100).toStringAsFixed(0) : '0';
+    final stats = statsAsync.value;
+    if (stats == null && statsAsync.isLoading) {
+      return SizedBox(
+        height: r.h(65),
+        child: const Center(child: CircularProgressIndicator(color: LitColors.ember, strokeWidth: 2)),
+      );
+    }
 
-        return Column(
+    final regCount = stats?['registrations'] ?? 0;
+    final attCount = stats?['attendance'] ?? 0;
+    final attendanceRate = regCount > 0 ? (attCount / regCount * 100).toStringAsFixed(0) : '0';
+
+    return Column(
+      children: [
+        // Bento Grid Row 1
+        Row(
           children: [
-            // Bento Grid Row 1
-            Row(
-              children: [
-                Expanded(
-                  child: ClayInsetCard(
-                    padding: EdgeInsets.all(r.w(12)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          NumberFormat('#,###').format(regCount),
-                          style: GoogleFonts.fredoka(
-                            fontSize: r.sp(17),
-                            fontWeight: FontWeight.bold,
-                            color: LitColors.bone,
-                          ),
-                        ),
-                        Text(
-                          'REGISTRATIONS',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: r.sp(8.5),
-                            color: LitColors.ash,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.04,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(width: r.w(8)),
-                Expanded(
-                  child: ClayInsetCard(
-                    padding: EdgeInsets.all(r.w(12)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '$attendanceRate%',
-                          style: GoogleFonts.fredoka(
-                            fontSize: r.sp(17),
-                            fontWeight: FontWeight.bold,
-                            color: LitColors.bone,
-                          ),
-                        ),
-                        Text(
-                          'LIVE ATTENDANCE',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: r.sp(8.5),
-                            color: LitColors.ash,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.04,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (showAppeals) ...[
-              SizedBox(height: r.h(8)),
-              // Bento Grid Row 2: Open Appeals
-              ClayInsetCard(
-                width: double.infinity,
-                padding: EdgeInsets.symmetric(horizontal: r.w(14), vertical: r.h(10)),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Expanded(
+              child: ClayInsetCard(
+                padding: EdgeInsets.all(r.w(12)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Open Appeals',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: r.sp(11.5),
+                      NumberFormat('#,###').format(regCount),
+                      style: GoogleFonts.fredoka(
+                        fontSize: r.sp(17),
+                        fontWeight: FontWeight.bold,
                         color: LitColors.bone,
                       ),
                     ),
                     Text(
-                      '3 pending',
-                      style: GoogleFonts.fredoka(
-                        fontSize: r.sp(14),
-                        color: LitColors.coral,
+                      'REGISTRATIONS',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: r.sp(8.5),
+                        color: LitColors.ash,
                         fontWeight: FontWeight.bold,
+                        letterSpacing: 0.04,
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
+            SizedBox(width: r.w(8)),
+            Expanded(
+              child: ClayInsetCard(
+                padding: EdgeInsets.all(r.w(12)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$attendanceRate%',
+                      style: GoogleFonts.fredoka(
+                        fontSize: r.sp(17),
+                        fontWeight: FontWeight.bold,
+                        color: LitColors.bone,
+                      ),
+                    ),
+                    Text(
+                      'LIVE ATTENDANCE',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: r.sp(8.5),
+                        color: LitColors.ash,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.04,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator(color: LitColors.ember)),
-      error: (_, __) => const Text('Error loading stats'),
+        ),
+        if (showAppeals) ...[
+          SizedBox(height: r.h(8)),
+          // Bento Grid Row 2: Open Appeals
+          ClayInsetCard(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(horizontal: r.w(14), vertical: r.h(10)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Open Appeals',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: r.sp(11.5),
+                    color: LitColors.bone,
+                  ),
+                ),
+                Text(
+                  '3 pending',
+                  style: GoogleFonts.fredoka(
+                    fontSize: r.sp(14),
+                    color: LitColors.coral,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 

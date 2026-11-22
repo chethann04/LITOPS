@@ -7,7 +7,6 @@ import '../../../core/enums/enums.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
-import '../../../core/providers/auto_refresh_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/utils/app_utils.dart';
@@ -45,8 +44,6 @@ final eventResultsProvider = StreamProvider.family<List<Map<String, dynamic>>, S
 });
 
 final eventResultsWithDetailsProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, eventId) async {
-  // Auto-refresh results with details
-  ref.watch(autoRefreshProvider);
   ref.watch(eventResultsProvider(eventId));
   
   // Fetch the results with related data

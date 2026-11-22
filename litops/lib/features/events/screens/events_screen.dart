@@ -10,7 +10,6 @@ import '../../../core/theme/theme.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../../core/providers/auto_refresh_provider.dart';
 import '../../../core/utils/responsive.dart';
 
 final eventsListProvider = StreamProvider<List<Event>>((ref) async* {
@@ -436,8 +435,6 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
 }
 
 final eventConstraintsSummaryProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, eventId) async {
-  // Auto-refresh constraint counts in real time
-  ref.watch(autoRefreshProvider);
   try {
     final constraints = await SupabaseConfig.client
         .from(SupabaseTables.participationConstraints)
