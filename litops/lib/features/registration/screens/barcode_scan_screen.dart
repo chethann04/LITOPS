@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/models.dart';
@@ -7,6 +8,7 @@ import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../events/screens/event_detail_screen.dart';
+import '../../events/screens/events_screen.dart' show eventConstraintsSummaryProvider;
 import '../../dashboard/screens/dashboard_screen.dart';
 import 'registration_screen.dart';
 import '../../../core/utils/responsive.dart';
@@ -197,8 +199,9 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
       }
 
       if (student != null) {
+        final currentStudent = student;
         // Check if already in slots
-        if (_participants.any((p) => p?.id == student!.id)) {
+        if (_participants.any((p) => p?.id == currentStudent.id)) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                 content: Text('Student is already in the participant list'),
@@ -208,19 +211,19 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
           // Check branch participation constraint
           final constraintsSummary = ref.read(eventConstraintsSummaryProvider(_selectedEvent!.id)).value ?? [];
           final constraint = constraintsSummary.firstWhere(
-            (c) => c['branch'] == student.branch,
+            (c) => c['branch'] == currentStudent.branch,
             orElse: () => {},
           );
           if (constraint.isNotEmpty) {
             final int maxParticipants = constraint['max'] as int;
             final int currentParticipants = constraint['current'] as int;
-            final int pendingCount = _participants.where((p) => p != null && p.branch == student.branch && p.id != student.id).length;
+            final int pendingCount = _participants.where((p) => p != null && p.branch == currentStudent.branch && p.id != currentStudent.id).length;
             
             if (currentParticipants + pendingCount + 1 > maxParticipants) {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Limit exceeded! Only $maxParticipants participants from ${student.branch} are allowed for this event.'),
+                    content: Text('Limit exceeded! Only $maxParticipants participants from ${currentStudent.branch} are allowed for this event.'),
                     backgroundColor: Colors.orange,
                   ),
                 );
@@ -234,7 +237,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
           }
 
           if (_selectedEvent!.isTeamEvent && _teamDepartment != null) {
-            if (student.branch != _teamDepartment) {
+            if (currentStudent.branch != _teamDepartment) {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text('This team belongs to ${_branchDisplayNames[_teamDepartment]}. Only ${_branchDisplayNames[_teamDepartment]} students can be added.'),
@@ -248,9 +251,9 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
           }
 
           setState(() {
-            _participants[_activeSlotIndex] = student;
+            _participants[_activeSlotIndex] = currentStudent;
             if (_selectedEvent!.isTeamEvent && _activeSlotIndex == 0) {
-              _teamDepartment = student.branch;
+              _teamDepartment = currentStudent.branch;
             }
             _moveToNextEmptySlot();
           });
@@ -1414,6 +1417,16 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFFF3ECE2)),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/dashboard');
+            }
+          },
+        ),
         title: const Text('Unified Registration Panel', style: TextStyle(color: Color(0xFFF3ECE2), fontWeight: FontWeight.bold)),
       ),
       body: isTablet ? _buildTabletLayout() : _buildMobileLayout(),

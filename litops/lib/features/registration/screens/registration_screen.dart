@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -812,9 +813,28 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
     final isAllowed = role.canRegisterParticipants || role.canManualEntry || (year != null && year >= 1 && year <= 4);
     
     if (!isAllowed) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: LitColors.void_,
-        body: EmptyView(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: LitColors.bone),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/dashboard');
+              }
+            },
+          ),
+          title: Text(
+            'Registration Center',
+            style: GoogleFonts.fredoka(fontWeight: FontWeight.w600, fontSize: 16, color: LitColors.bone),
+          ),
+        ),
+        body: const EmptyView(
           icon: Icons.lock_outline,
           title: 'Access Restricted',
           subtitle: 'You do not have permissions to register participants.',
@@ -828,6 +848,16 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: LitColors.bone),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/dashboard');
+            }
+          },
+        ),
         title: Text(
           'Registration Center',
           style: GoogleFonts.fredoka(fontWeight: FontWeight.w600, fontSize: 16, color: LitColors.bone),

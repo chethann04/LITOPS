@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/models.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../events/screens/events_screen.dart' show eventConstraintsSummaryProvider;
 import '../../../core/utils/responsive.dart';
 
 class TeamRegistrationScreen extends ConsumerStatefulWidget {
@@ -229,6 +231,16 @@ class _TeamRegistrationScreenState
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: LitColors.bone),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/dashboard');
+            }
+          },
+        ),
         title: Text('Team Registration', style: GoogleFonts.fredoka(fontWeight: FontWeight.w600, fontSize: 16, color: LitColors.bone)),
       ),
       body: ListView(
