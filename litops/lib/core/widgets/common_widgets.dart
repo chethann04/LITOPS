@@ -153,11 +153,6 @@ class ClayCard extends StatelessWidget {
             offset: Offset(0, 4),
             blurRadius: 8,
           ),
-          BoxShadow(
-            color: Color(0x0AFFFFFF),
-            offset: Offset(-1, -1),
-            blurRadius: 3,
-          ),
         ],
       ),
       child: Material(
@@ -193,7 +188,7 @@ class ClayInsetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final br = BorderRadius.circular(borderRadius);
-    final bg = color ?? LitColors.clay2;
+    final bg = color ?? const Color(0xFF141211);
 
     Widget content = child;
     if (padding != null) {
@@ -209,17 +204,7 @@ class ClayInsetCard extends StatelessWidget {
         borderRadius: br,
         border: border != null
             ? Border.fromBorderSide(border!)
-            : Border.all(color: const Color(0x1FFFFFFF), width: 0.8),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0x40000000),
-            bg,
-            const Color(0x08FFFFFF),
-          ],
-          stops: const [0.0, 0.45, 1.0],
-        ),
+            : Border.all(color: LitColors.border, width: 1.0),
       ),
       child: Material(
         color: Colors.transparent,
