@@ -269,11 +269,45 @@ class NotificationService {
     String? publisherUserId,
     String? summaryText,
   }) async {
+    final title = '🏆 Results Published: $eventName';
+    String body = 'Results for "$eventName" have been published.';
+    if (summaryText != null && summaryText.trim().isNotEmpty) {
+      body += '\n${summaryText.trim()}';
+    }
+    body += '\nCheck the leaderboard for updated branch standings!';
+
+    // 1. Try secure database RPC first (runs with SECURITY DEFINER in PostgreSQL)
+    try {
+      final rpcRes = await SupabaseConfig.client.rpc(
+        'notify_senior_members_on_results_published_rpc',
+        params: {
+          'p_event_id': eventId,
+          'p_event_name': eventName,
+          'p_summary_text': summaryText,
+        },
+      );
+      if (rpcRes != null) {
+        final count = (rpcRes is int) ? rpcRes : int.tryParse(rpcRes.toString()) ?? 1;
+        debugPrint('NotificationService: Database RPC dispatched results notifications to $count members.');
+
+        // Also post immediate local toast on the device
+        NotificationsNotifier.postGlobal(
+          title: title,
+          message: body,
+          type: NotificationType.result,
+        );
+        return count;
+      }
+    } catch (rpcErr) {
+      debugPrint('NotificationService: RPC fallback to direct query: $rpcErr');
+    }
+
+    // 2. Direct client query fallback
     try {
       debugPrint('NotificationService: Fetching 3rd & 4th year members for event "$eventName"...');
       final profilesRes = await SupabaseConfig.client
           .from(SupabaseTables.profiles)
-          .select('id, full_name, role, year, academic_year, usn, is_active, account_status, profile_status');
+          .select('id, full_name, role, year, usn, is_active, profile_status');
 
       final eligibleUserIds = <String>{};
 
@@ -282,14 +316,13 @@ class NotificationService {
         if (id == null) continue;
 
         final isActive = (p['is_active'] as bool?) ?? true;
-        final accountStatus = p['account_status'] as String? ?? 'active';
         final profileStatus = p['profile_status'] as String? ?? 'approved';
-        if (!isActive || accountStatus == 'disabled' || profileStatus == 'rejected') {
+        if (!isActive || profileStatus == 'rejected') {
           continue;
         }
 
         // Determine study year (1–4)
-        int? studyYear = p['year'] as int? ?? p['academic_year'] as int?;
+        int? studyYear = p['year'] as int?;
         if (studyYear == null) {
           final usn = p['usn'] as String?;
           if (usn != null && usn.trim().isNotEmpty) {
@@ -331,32 +364,18 @@ class NotificationService {
         return 0;
       }
 
-      // Check existing notifications to prevent duplicates
-      final existingNotifs = await SupabaseConfig.client
-          .from(SupabaseTables.notifications)
-          .select('user_id')
-          .eq('event_id', eventId)
-          .eq('type', 'results_published');
-
-      final alreadyNotified = (existingNotifs as List)
-          .map((n) => n['user_id'] as String?)
-          .whereType<String>()
-          .toSet();
-
-      final pendingUserIds = eligibleUserIds.difference(alreadyNotified);
-      if (pendingUserIds.isEmpty) {
-        debugPrint('NotificationService: All eligible senior members already notified.');
-        return 0;
+      // If re-publishing, remove older results_published notifications for this event so updated ones are received
+      try {
+        await SupabaseConfig.client
+            .from(SupabaseTables.notifications)
+            .delete()
+            .eq('event_id', eventId)
+            .eq('type', 'results_published');
+      } catch (delErr) {
+        debugPrint('NotificationService: (Notice) Previous notifications clear: $delErr');
       }
 
-      final title = '🏆 Results Published: $eventName';
-      String body = 'Results for "$eventName" have been published.';
-      if (summaryText != null && summaryText.trim().isNotEmpty) {
-        body += '\n${summaryText.trim()}';
-      }
-      body += '\nCheck the leaderboard for updated branch standings!';
-
-      final notificationRows = pendingUserIds.map((userId) => {
+      final notificationRows = eligibleUserIds.map((userId) => {
         'user_id': userId,
         'sender_user_id': publisherUserId,
         'title': title,
@@ -371,6 +390,14 @@ class NotificationService {
           .insert(notificationRows);
 
       debugPrint('NotificationService: Successfully dispatched results_published notifications to ${notificationRows.length} 3rd and 4th year members.');
+
+      // Also post immediate local toast on device
+      NotificationsNotifier.postGlobal(
+        title: title,
+        message: body,
+        type: NotificationType.result,
+      );
+
       return notificationRows.length;
     } catch (e) {
       debugPrint('NotificationService: Error notifying senior members on results published: $e');
