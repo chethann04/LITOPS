@@ -184,7 +184,12 @@ class RoleConfig {
   bool get canManageDatabase => role.canManageDatabase;
   bool get canResetDatabase => role.canResetDatabase;
   bool get canViewAppeals => role.canViewAppeals;
-  bool get canManageResults => role.canManageResults;
+  bool get canManageResults =>
+      role.isSuperAdmin ||
+      role.isAdmin ||
+      canManageEvents ||
+      year == 4 ||
+      (year == 3 && (role == UserRole.eventManager || role == UserRole.eventManagerCoEditorial));
   bool get canGenerateCertificates => role.canGenerateCertificates;
   bool get canMarkAttendance => role.canMarkAttendance;
   bool get canEditPoints => role.canEditPoints;

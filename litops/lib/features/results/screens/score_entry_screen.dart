@@ -607,19 +607,27 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
 
     try {
       // 1. Delete existing results & points for this event
-      await SupabaseConfig.client
-          .from(SupabaseTables.results)
-          .delete()
-          .eq('event_id', widget.eventId);
+      try {
+        await SupabaseConfig.client
+            .from(SupabaseTables.results)
+            .delete()
+            .eq('event_id', widget.eventId);
+      } catch (delErr) {
+        debugPrint('⚠️ Delete results warning: $delErr');
+      }
 
-      await SupabaseConfig.client
-          .from(SupabaseTables.eventPoints)
-          .delete()
-          .eq('event_id', widget.eventId);
+      try {
+        await SupabaseConfig.client
+            .from(SupabaseTables.eventPoints)
+            .delete()
+            .eq('event_id', widget.eventId);
+      } catch (ptsDelErr) {
+        debugPrint('⚠️ Delete eventPoints warning: $ptsDelErr');
+      }
 
       int insertedCount = 0;
 
-      // 2. Insert new results and points
+      // 2. Insert/Upsert new results and points
       for (final entry in _positionEntries) {
         final candidate = _candidates.firstWhere(
           (c) => c.registrationId == entry.selectedRegistrationId,
@@ -628,8 +636,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
         final points = int.tryParse(entry.pointsController.text.trim()) ??
             entry.defaultPoints;
 
-        // Insert into results table
-        await SupabaseConfig.client.from(SupabaseTables.results).insert({
+        // Upsert into results table to guarantee no unique constraint conflict
+        await SupabaseConfig.client.from(SupabaseTables.results).upsert({
           'event_id': widget.eventId,
           'registration_id': candidate.registrationId,
           'team_id': candidate.teamId,
@@ -638,27 +646,31 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
           'remarks': entry.positionName,
           'published_at': DateTime.now().toIso8601String(),
           'published_by': profile?.id,
-        });
+        }, onConflict: 'event_id,registration_id');
         insertedCount++;
 
-        // Insert into event_points table for leaderboard aggregation
-        final candidateBranch = candidate.branch ??
-            (candidate.usn != null && candidate.usn!.trim().isNotEmpty
-                ? AppUtils.extractBranchFromUsn(candidate.usn!)
-                : null);
-        if (candidateBranch != null && candidateBranch.trim().isNotEmpty) {
-          final officialBranch =
-              AppUtils.mapUsnBranchToOfficial(candidateBranch);
-          await SupabaseConfig.client.from(SupabaseTables.eventPoints).insert({
-            'event_id': widget.eventId,
-            'branch': officialBranch,
-            'student_id': null,
-            'team_id': candidate.teamId,
-            'points': points,
-            'reason': '${_event?.name ?? "Event"} - ${entry.positionName}',
-            'position': entry.positionKey,
-            'allocated_by': profile?.id,
-          });
+        // Insert into event_points table for leaderboard aggregation (safe guarded)
+        try {
+          final candidateBranch = candidate.branch ??
+              (candidate.usn != null && candidate.usn!.trim().isNotEmpty
+                  ? AppUtils.extractBranchFromUsn(candidate.usn!)
+                  : null);
+          if (candidateBranch != null && candidateBranch.trim().isNotEmpty) {
+            final officialBranch =
+                AppUtils.mapUsnBranchToOfficial(candidateBranch);
+            await SupabaseConfig.client.from(SupabaseTables.eventPoints).insert({
+              'event_id': widget.eventId,
+              'branch': officialBranch,
+              'student_id': null,
+              'team_id': candidate.teamId,
+              'points': points,
+              'reason': '${_event?.name ?? "Event"} - ${entry.positionName}',
+              'position': entry.positionKey,
+              'allocated_by': profile?.id,
+            });
+          }
+        } catch (ptsErr) {
+          debugPrint('⚠️ eventPoints insert warning: $ptsErr');
         }
       }
 
@@ -678,10 +690,14 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
       }
 
       if (!statusUpdatedViaRpc) {
-        await SupabaseConfig.client.from(SupabaseTables.events).update({
-          'status': EventStatus.resultsPublished.value,
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('id', widget.eventId);
+        try {
+          await SupabaseConfig.client.from(SupabaseTables.events).update({
+            'status': EventStatus.resultsPublished.value,
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('id', widget.eventId);
+        } catch (tableErr) {
+          debugPrint('⚠️ event status update warning: $tableErr');
+        }
       }
 
       // 4. Invalidate all relevant providers for real-time app-wide synchronization

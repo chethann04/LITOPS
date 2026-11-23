@@ -21,7 +21,7 @@ DECLARE
 BEGIN
   -- Only fire when status transitions to 'results_published'
   IF NEW.status::TEXT = 'results_published' AND (OLD.status IS NULL OR OLD.status::TEXT != 'results_published') THEN
-    v_event_name := COALESCE(NEW.name, NEW.title, 'Event');
+    v_event_name := COALESCE(NEW.title, 'Event');
     v_publisher_id := auth.uid();
     v_title := '🏆 Results Published: ' || v_event_name;
     v_message := 'Results for "' || v_event_name || '" have been published. Check out the leaderboard for updated branch standings!';
@@ -77,6 +77,10 @@ BEGIN
   END IF;
 
   RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Never allow notification trigger failure to block publishing results or event updates
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
