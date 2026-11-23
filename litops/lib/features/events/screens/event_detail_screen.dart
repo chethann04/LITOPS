@@ -12,7 +12,9 @@ import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../../core/widgets/top_notification.dart';
+import '../../../core/config/role_config.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../dashboard/screens/dashboard_screen.dart' show ongoingEventsProvider;
 import 'events_screen.dart' show eventsListProvider;
 
 final eventDetailProvider = StreamProvider.family<Event, String>((ref, eventId) async* {
@@ -100,6 +102,70 @@ class EventDetailScreen extends ConsumerStatefulWidget {
 
 class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   EventStatus? _optimisticStatus;
+  bool _isUpdatingStatus = false;
+
+  Future<void> _updateStatus(EventStatus newStatus, EventStatus currentStatus) async {
+    if (_isUpdatingStatus || newStatus == currentStatus) return;
+    setState(() {
+      _isUpdatingStatus = true;
+      _optimisticStatus = newStatus;
+    });
+
+    final previousStatus = currentStatus;
+    try {
+      bool updatedViaRpc = false;
+      try {
+        await SupabaseConfig.client.rpc(
+          'update_event_status',
+          params: {
+            'p_event_id': widget.eventId,
+            'p_status': newStatus.value,
+          },
+        );
+        updatedViaRpc = true;
+      } catch (rpcErr) {
+        debugPrint('⚠️ update_event_status RPC fallback: $rpcErr');
+      }
+
+      if (!updatedViaRpc) {
+        await SupabaseConfig.client
+            .from(SupabaseTables.events)
+            .update({
+              'status': newStatus.value,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', widget.eventId);
+      }
+
+      ref.invalidate(eventDetailProvider(widget.eventId));
+      ref.invalidate(eventsListProvider);
+      ref.invalidate(ongoingEventsProvider);
+
+      if (mounted && context.mounted) {
+        AppToast.success(
+          context,
+          'Event status updated to "${newStatus.label}"',
+          title: 'Status Updated',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error updating event status: $e');
+      if (mounted) {
+        setState(() => _optimisticStatus = previousStatus);
+        if (context.mounted) {
+          AppToast.failed(
+            context,
+            'Failed to update event status: $e',
+            title: 'Status Update Failed',
+          );
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdatingStatus = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +174,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     final regCountAsync = ref.watch(eventRegistrationsCountProvider(eventId));
     final attCountAsync = ref.watch(eventAttendanceCountProvider(eventId));
     final roleConfig = ref.watch(roleConfigProvider);
-    final isAllowedToRegister = roleConfig.canRegisterParticipants || (roleConfig.year >= 1 && roleConfig.year <= 4);
     final canEdit = roleConfig.canCreateEvents ||
                     roleConfig.canManageEvents ||
                     roleConfig.canManageEventSchedule ||
@@ -334,59 +399,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                                     ),
                                   );
                                   if (newStatus != null && newStatus != currentStatus) {
-                                    final previousStatus = currentStatus;
-                                    setState(() => _optimisticStatus = newStatus);
-
-                                    try {
-                                      // 1. Try secure RPC first
-                                      bool updatedViaRpc = false;
-                                      try {
-                                        await SupabaseConfig.client.rpc(
-                                          'update_event_status',
-                                          params: {
-                                            'p_event_id': widget.eventId,
-                                            'p_status': newStatus.value,
-                                          },
-                                        );
-                                        updatedViaRpc = true;
-                                      } catch (rpcErr) {
-                                        debugPrint('⚠️ update_event_status RPC not available or failed ($rpcErr). Using direct update.');
-                                      }
-
-                                      // 2. Direct table update fallback
-                                      if (!updatedViaRpc) {
-                                        await SupabaseConfig.client
-                                            .from(SupabaseTables.events)
-                                            .update({
-                                              'status': newStatus.value,
-                                              'updated_at': DateTime.now().toIso8601String(),
-                                            })
-                                            .eq('id', widget.eventId);
-                                      }
-
-                                      // 3. Invalidate providers to synchronize state across the app
-                                      ref.invalidate(eventDetailProvider(widget.eventId));
-                                      ref.invalidate(eventsListProvider);
-                                      if (mounted && context.mounted) {
-                                        AppToast.updating(
-                                          context,
-                                          'Event status updated to ${newStatus.label}',
-                                          title: 'Status Updated',
-                                        );
-                                      }
-                                    } catch (e) {
-                                      debugPrint('Error updating event status: $e');
-                                      if (mounted) {
-                                        setState(() => _optimisticStatus = previousStatus);
-                                        if (context.mounted) {
-                                          AppToast.failed(
-                                            context,
-                                            'Failed to update event status: $e',
-                                            title: 'Status Update Failed',
-                                          );
-                                        }
-                                      }
-                                    }
+                                    await _updateStatus(newStatus, currentStatus);
                                   }
                                 },
                                 child: StatusChip(label: currentStatus.label),
@@ -455,86 +468,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                         ),
                       SizedBox(height: context.r.h(16)),
 
-                      // If ongoing or completed or results published - prominent Results Action Card in Overview
-                      if (isOngoing || currentStatus == EventStatus.completed || currentStatus == EventStatus.resultsPublished)
-                        Container(
-                          margin: EdgeInsets.only(bottom: context.r.h(16)),
-                          padding: EdgeInsets.all(context.r.w(14)),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF241C18), Color(0xFF191513)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(context.r.radius(14)),
-                            border: Border.all(
-                              color: currentStatus == EventStatus.resultsPublished
-                                  ? LitColors.moss.withValues(alpha: 0.4)
-                                  : LitColors.ember.withValues(alpha: 0.5),
-                              width: 1.2,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: EdgeInsets.all(context.r.w(10)),
-                                decoration: BoxDecoration(
-                                  color: currentStatus == EventStatus.resultsPublished
-                                      ? LitColors.moss.withValues(alpha: 0.15)
-                                      : LitColors.ember.withValues(alpha: 0.15),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.emoji_events_rounded,
-                                  color: currentStatus == EventStatus.resultsPublished ? LitColors.moss : LitColors.amber,
-                                  size: context.r.icon(24),
-                                ),
-                              ),
-                              SizedBox(width: context.r.w(12)),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      currentStatus == EventStatus.resultsPublished
-                                          ? 'Results Published'
-                                          : 'Event Active: Ready for Results',
-                                      style: GoogleFonts.fredoka(
-                                        color: LitColors.bone,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: context.r.sp(14),
-                                      ),
-                                    ),
-                                    Text(
-                                      'Assign 1st, 2nd, 3rd, or custom positions with points to update leaderboard.',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        color: LitColors.ash,
-                                        fontSize: context.r.sp(10.5),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              SizedBox(width: context.r.w(8)),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: LitColors.ember,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  padding: EdgeInsets.symmetric(horizontal: context.r.w(12), vertical: context.r.h(8)),
-                                ),
-                                onPressed: () => context.push('/results/score/$eventId'),
-                                child: Text(
-                                  currentStatus == EventStatus.resultsPublished ? 'Edit Results' : 'Publish Results',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    fontSize: context.r.sp(12),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                      // Event Lifecycle Progression Action Card
+                      _buildLifecycleControllerCard(context, currentStatus, roleConfig, event),
 
                       // Details Grid
                       GridView.count(
@@ -623,7 +558,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               ),
             ),
 
-              // Bottom Register Bar
+              // Bottom Action Bar with Complete Event Lifecycle
               Container(
                 padding: EdgeInsets.all(context.r.w(16)),
                 decoration: const BoxDecoration(
@@ -636,7 +571,40 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (currentStatus == EventStatus.registrationOpen && isAllowedToRegister) ...[
+                      // Stage 1: Upcoming or Draft
+                      if ((currentStatus == EventStatus.upcoming || currentStatus == EventStatus.draft) && roleConfig.canManageEvents) ...[
+                        ClayButton(
+                          onPressed: _isUpdatingStatus
+                              ? null
+                              : () => _updateStatus(EventStatus.registrationOpen, currentStatus),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (_isUpdatingStatus)
+                                SizedBox(
+                                  width: context.r.icon(16),
+                                  height: context.r.icon(16),
+                                  child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              else ...[
+                                Icon(Icons.how_to_reg_rounded, size: context.r.icon(16)),
+                                SizedBox(width: context.r.w(8)),
+                                const Text('Open Registrations'),
+                              ],
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: context.r.h(6)),
+                        Text(
+                          'Tap to open registrations for students and members',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: LitColors.ash,
+                            fontSize: context.r.sp(10),
+                          ),
+                        ),
+                      ]
+                      // Stage 2: Registration Open
+                      else if (currentStatus == EventStatus.registrationOpen) ...[
                         ClayButton(
                           onPressed: () => context.push('/registration', extra: event),
                           child: Row(
@@ -648,41 +616,174 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                             ],
                           ),
                         ),
-                        SizedBox(height: context.r.h(8)),
+                        if (roleConfig.canManageEvents) ...[
+                          SizedBox(height: context.r.h(8)),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: LitColors.amber.withValues(alpha: 0.5)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: EdgeInsets.symmetric(vertical: context.r.h(10)),
+                              ),
+                              onPressed: _isUpdatingStatus
+                                  ? null
+                                  : () => _updateStatus(EventStatus.registrationClosed, currentStatus),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  if (_isUpdatingStatus)
+                                    SizedBox(
+                                      width: context.r.icon(14),
+                                      height: context.r.icon(14),
+                                      child: const CircularProgressIndicator(strokeWidth: 2, color: LitColors.amber),
+                                    )
+                                  else ...[
+                                    Icon(Icons.lock_clock_rounded, size: context.r.icon(14), color: LitColors.amber),
+                                    SizedBox(width: context.r.w(6)),
+                                    Text(
+                                      'Close Registration',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: LitColors.amber,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: context.r.sp(11.5),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                        SizedBox(height: context.r.h(6)),
                         Text(
-                          'Registration Open · Tap to scan QR or register participants',
+                          'Registration Open · Any member can register participants',
                           style: GoogleFonts.plusJakartaSans(
                             color: LitColors.ash,
                             fontSize: context.r.sp(10),
                           ),
                         ),
-                      ] else if (currentStatus == EventStatus.registrationClosed) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.symmetric(vertical: context.r.h(12)),
-                          decoration: BoxDecoration(
-                            color: LitColors.clay2,
-                            borderRadius: BorderRadius.circular(context.r.radius(12)),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                      ]
+                      // Stage 3: Registration Closed
+                      else if (currentStatus == EventStatus.registrationClosed) ...[
+                        if (roleConfig.canManageEvents) ...[
+                          ClayButton(
+                            onPressed: _isUpdatingStatus
+                                ? null
+                                : () => _updateStatus(EventStatus.ongoing, currentStatus),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (_isUpdatingStatus)
+                                  SizedBox(
+                                    width: context.r.icon(16),
+                                    height: context.r.icon(16),
+                                    child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                else ...[
+                                  Icon(Icons.play_circle_fill_rounded, size: context.r.icon(18), color: Colors.white),
+                                  SizedBox(width: context.r.w(8)),
+                                  const Text('Start Event (Ongoing)'),
+                                ],
+                              ],
+                            ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.lock_rounded, size: context.r.icon(15), color: LitColors.ash),
-                              SizedBox(width: context.r.w(6)),
-                              Text(
-                                'Registration Closed — No New Registrations',
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: LitColors.ash,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: context.r.sp(12),
+                          SizedBox(height: context.r.h(6)),
+                          Text(
+                            'Registration closed · Tap to transition event to Ongoing',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.ash,
+                              fontSize: context.r.sp(10),
+                            ),
+                          ),
+                        ] else ...[
+                          Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.symmetric(vertical: context.r.h(12)),
+                            decoration: BoxDecoration(
+                              color: LitColors.clay2,
+                              borderRadius: BorderRadius.circular(context.r.radius(12)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.lock_rounded, size: context.r.icon(15), color: LitColors.ash),
+                                SizedBox(width: context.r.w(6)),
+                                Text(
+                                  'Registration Closed — No New Registrations',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: LitColors.ash,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: context.r.sp(12),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                      if (isOngoing || currentStatus == EventStatus.completed || currentStatus == EventStatus.resultsPublished) ...[
+                        ],
+                      ]
+                      // Stage 4: Ongoing Event
+                      else if (isOngoing) ...[
+                        if (roleConfig.canManageEvents) ...[
+                          ClayButton(
+                            onPressed: _isUpdatingStatus
+                                ? null
+                                : () => _updateStatus(EventStatus.completed, currentStatus),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (_isUpdatingStatus)
+                                  SizedBox(
+                                    width: context.r.icon(16),
+                                    height: context.r.icon(16),
+                                    child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                else ...[
+                                  Icon(Icons.task_alt_rounded, size: context.r.icon(18), color: Colors.white),
+                                  SizedBox(width: context.r.w(8)),
+                                  const Text('Complete Event'),
+                                ],
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: context.r.h(6)),
+                          Text(
+                            'Event is live · Tap when rounds conclude to mark Completed',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.ash,
+                              fontSize: context.r.sp(10),
+                            ),
+                          ),
+                        ] else ...[
+                          Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.symmetric(vertical: context.r.h(12)),
+                            decoration: BoxDecoration(
+                              color: LitColors.clay2,
+                              borderRadius: BorderRadius.circular(context.r.radius(12)),
+                              border: Border.all(color: LitColors.ember.withValues(alpha: 0.25)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.play_circle_fill_rounded, size: context.r.icon(16), color: LitColors.ember),
+                                SizedBox(width: context.r.w(6)),
+                                Text(
+                                  'Event Live & Ongoing — Registration Closed',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: LitColors.bone,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: context.r.sp(12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ]
+                      // Stage 5: Completed Event -> Publish Results enabled!
+                      else if (currentStatus == EventStatus.completed) ...[
                         if (roleConfig.canManageResults || roleConfig.canManageEvents) ...[
                           ClayButton(
                             onPressed: () => context.push('/results/score/$eventId'),
@@ -691,26 +792,39 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                               children: [
                                 Icon(Icons.emoji_events, size: context.r.icon(18), color: Colors.white),
                                 SizedBox(width: context.r.w(8)),
-                                Text(
-                                  currentStatus == EventStatus.resultsPublished
-                                      ? 'Edit & Re-Publish Results'
-                                      : 'Publish Results',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: context.r.sp(13.5),
-                                    color: Colors.white,
-                                  ),
-                                ),
+                                const Text('Publish Results'),
                               ],
                             ),
                           ),
                           SizedBox(height: context.r.h(6)),
                           Text(
-                            currentStatus == EventStatus.resultsPublished
-                                ? 'Results published · Tap to edit positions or points'
-                                : 'Event active · Assign 1st, 2nd, 3rd, or custom positions to publish',
+                            'Event completed · Assign 1st, 2nd, 3rd, or custom positions to publish',
                             style: GoogleFonts.plusJakartaSans(
-                              color: currentStatus == EventStatus.resultsPublished ? LitColors.moss : LitColors.ash,
+                              color: LitColors.ash,
+                              fontSize: context.r.sp(10),
+                            ),
+                          ),
+                        ],
+                      ]
+                      // Stage 6: Results Published
+                      else if (currentStatus == EventStatus.resultsPublished) ...[
+                        if (roleConfig.canManageResults || roleConfig.canManageEvents) ...[
+                          ClayButton(
+                            onPressed: () => context.push('/results/score/$eventId'),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.emoji_events, size: context.r.icon(18), color: Colors.white),
+                                SizedBox(width: context.r.w(8)),
+                                const Text('Edit & Re-Publish Results'),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: context.r.h(6)),
+                          Text(
+                            'Results published · Tap to edit positions or points',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.moss,
                               fontSize: context.r.sp(10),
                             ),
                           ),
@@ -1415,6 +1529,204 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
             Text(label),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLifecycleControllerCard(
+    BuildContext context,
+    EventStatus currentStatus,
+    RoleConfig roleConfig,
+    Event event,
+  ) {
+    final r = context.r;
+    final canManage = roleConfig.canManageEvents;
+
+    String stageTitle;
+    String stageDescription;
+    String? nextButtonText;
+    IconData stageIcon;
+    Color stageColor;
+    VoidCallback? onNextTap;
+
+    switch (currentStatus) {
+      case EventStatus.draft:
+      case EventStatus.upcoming:
+        stageTitle = 'Event Upcoming';
+        stageDescription = 'Event is scheduled. Open registrations to allow student entries.';
+        stageIcon = Icons.event_available_rounded;
+        stageColor = LitColors.amber;
+        nextButtonText = 'Open Registrations';
+        onNextTap = canManage
+            ? () => _updateStatus(EventStatus.registrationOpen, currentStatus)
+            : null;
+        break;
+
+      case EventStatus.registrationOpen:
+        stageTitle = 'Registrations are Open';
+        stageDescription = 'Students and members can register. Tap "Close Registration" when ready.';
+        stageIcon = Icons.how_to_reg_rounded;
+        stageColor = LitColors.moss;
+        nextButtonText = 'Close Registration';
+        onNextTap = canManage
+            ? () => _updateStatus(EventStatus.registrationClosed, currentStatus)
+            : null;
+        break;
+
+      case EventStatus.registrationClosed:
+        stageTitle = 'Registration Closed';
+        stageDescription = 'No further registrations will be accepted. Start event when competition begins.';
+        stageIcon = Icons.lock_clock_rounded;
+        stageColor = LitColors.ember;
+        nextButtonText = 'Start Event (Ongoing)';
+        onNextTap = canManage
+            ? () => _updateStatus(EventStatus.ongoing, currentStatus)
+            : null;
+        break;
+
+      case EventStatus.ongoing:
+        stageTitle = 'Event is Live & Ongoing';
+        stageDescription = 'Competition in progress. Once rounds finish, tap "Complete Event".';
+        stageIcon = Icons.play_circle_fill_rounded;
+        stageColor = LitColors.ember;
+        nextButtonText = 'Complete Event';
+        onNextTap = canManage
+            ? () => _updateStatus(EventStatus.completed, currentStatus)
+            : null;
+        break;
+
+      case EventStatus.completed:
+        stageTitle = 'Event Completed';
+        stageDescription = 'Competition concluded. Tabulate scores and announce final standings.';
+        stageIcon = Icons.task_alt_rounded;
+        stageColor = LitColors.moss;
+        nextButtonText = 'Publish Results';
+        onNextTap = (roleConfig.canManageResults || canManage)
+            ? () => context.push('/results/score/${event.id}')
+            : null;
+        break;
+
+      case EventStatus.resultsPublished:
+        stageTitle = 'Results Published 🎉';
+        stageDescription = 'Final positions announced and leaderboard updated with points.';
+        stageIcon = Icons.emoji_events_rounded;
+        stageColor = LitColors.moss;
+        nextButtonText = 'Edit & Re-Publish Results';
+        onNextTap = (roleConfig.canManageResults || canManage)
+            ? () => context.push('/results/score/${event.id}')
+            : null;
+        break;
+
+      case EventStatus.archived:
+        stageTitle = 'Event Archived';
+        stageDescription = 'This event has been archived.';
+        stageIcon = Icons.archive_outlined;
+        stageColor = LitColors.ash;
+        nextButtonText = null;
+        onNextTap = null;
+        break;
+    }
+
+    return Container(
+      margin: EdgeInsets.only(bottom: r.h(16)),
+      padding: EdgeInsets.all(r.w(14)),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            stageColor == LitColors.moss
+                ? const Color(0xFF14241B)
+                : const Color(0xFF261D19),
+            const Color(0xFF161312),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(r.radius(16)),
+        border: Border.all(
+          color: stageColor.withValues(alpha: 0.45),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: stageColor.withValues(alpha: 0.12),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(r.w(10)),
+                decoration: BoxDecoration(
+                  color: stageColor.withValues(alpha: 0.16),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(stageIcon, color: stageColor, size: r.icon(22)),
+              ),
+              SizedBox(width: r.w(12)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      stageTitle,
+                      style: GoogleFonts.fredoka(
+                        color: LitColors.bone,
+                        fontWeight: FontWeight.bold,
+                        fontSize: r.sp(14.5),
+                      ),
+                    ),
+                    SizedBox(height: r.h(2)),
+                    Text(
+                      stageDescription,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: LitColors.ash,
+                        fontSize: r.sp(11),
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (nextButtonText != null && onNextTap != null) ...[
+            SizedBox(height: r.h(12)),
+            SizedBox(
+              width: double.infinity,
+              child: ClayButton(
+                onPressed: _isUpdatingStatus ? null : onNextTap,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_isUpdatingStatus)
+                      SizedBox(
+                        width: r.icon(16),
+                        height: r.icon(16),
+                        child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    else ...[
+                      Icon(stageIcon, size: r.icon(16), color: Colors.white),
+                      SizedBox(width: r.w(8)),
+                      Text(
+                        nextButtonText,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: r.sp(13),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

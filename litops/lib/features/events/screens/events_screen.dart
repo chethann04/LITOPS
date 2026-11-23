@@ -400,7 +400,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
                       ),
                     ),
                   ),
-                ] else if (event.status == EventStatus.ongoing || event.status == EventStatus.completed || event.status == EventStatus.resultsPublished) ...[
+                ] else if (event.status == EventStatus.completed || event.status == EventStatus.resultsPublished) ...[
                   SizedBox(height: r.h(8)),
                   Align(
                     alignment: Alignment.centerRight,
@@ -439,6 +439,34 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
                             ),
                           ],
                         ),
+                      ),
+                    ),
+                  ),
+                ] else if (event.status == EventStatus.ongoing) ...[
+                  SizedBox(height: r.h(8)),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: r.w(8), vertical: r.h(4)),
+                      decoration: BoxDecoration(
+                        color: LitColors.moss.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: LitColors.moss.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.play_circle_fill_rounded, size: r.icon(12), color: LitColors.moss),
+                          SizedBox(width: r.w(4)),
+                          Text(
+                            'Ongoing',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.moss,
+                              fontWeight: FontWeight.bold,
+                              fontSize: r.sp(10.5),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

@@ -586,7 +586,7 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                ] else if (isOngoingEvent) ...[
+                ] else if (event.status == EventStatus.completed) ...[
                   SizedBox(height: r.h(6)),
                   GestureDetector(
                     onTap: () => context.push('/results/score/${event.id}'),
@@ -612,6 +612,55 @@ class DashboardScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                ] else if (isOngoingEvent) ...[
+                  SizedBox(height: r.h(6)),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: r.w(8), vertical: r.h(4)),
+                    decoration: BoxDecoration(
+                      color: LitColors.moss.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: LitColors.moss.withValues(alpha: 0.35)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.play_circle_fill_rounded, size: r.icon(12), color: LitColors.moss),
+                        SizedBox(width: r.w(4)),
+                        Text(
+                          'Ongoing',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: LitColors.moss,
+                            fontWeight: FontWeight.bold,
+                            fontSize: r.sp(10.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else if (event.status == EventStatus.resultsPublished) ...[
+                  SizedBox(height: r.h(6)),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: r.w(8), vertical: r.h(4)),
+                    decoration: BoxDecoration(
+                      color: LitColors.moss.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.emoji_events_rounded, size: r.icon(12), color: LitColors.moss),
+                        SizedBox(width: r.w(4)),
+                        Text(
+                          'Results Published',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: LitColors.moss,
+                            fontWeight: FontWeight.bold,
+                            fontSize: r.sp(10.5),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ] else if (isClosed) ...[

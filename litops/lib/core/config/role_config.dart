@@ -153,7 +153,7 @@ class RoleConfig {
 
   // Quick Services list
   List<Map<String, dynamic>> getQuickServices() {
-    final showAssignments = role.canAssignMembers || year == 4;
+    final showAssignments = canAssignCrew;
     return [
       {'icon': Icons.qr_code_scanner_rounded, 'label': 'Scan QR', 'route': '/registration', 'color': LitColors.ember},
       {'icon': Icons.calendar_today_rounded, 'label': 'Events', 'route': '/events', 'color': LitColors.amber},
@@ -171,12 +171,16 @@ class RoleConfig {
   bool get isSuperAdmin => role.isSuperAdmin;
   bool get isAdmin => role.isAdmin;
   bool get isCoreCommittee => role.isCoreCommittee;
-  bool get canRegisterParticipants => role.canRegisterParticipants;
+  bool get canRegisterParticipants => true; // Any registered member can register when registration is open
   bool get canEditRegistrations => role.canEditRegistrations;
   bool get canDeleteRegistrations => role.canDeleteRegistrations;
   bool get canManualEntry => role.canManualEntry;
-  bool get canManageEvents => role.canManageEvents || year == 4;
-  bool get canCreateEvents => role.canCreateEvents;
+  bool get canManageEvents =>
+      role.isSuperAdmin ||
+      role.isAdmin ||
+      year == 4 ||
+      (year == 3 && (role == UserRole.eventManager || role == UserRole.eventManagerCoEditorial));
+  bool get canCreateEvents => canManageEvents;
   bool get canManageDatabase => role.canManageDatabase;
   bool get canResetDatabase => role.canResetDatabase;
   bool get canViewAppeals => role.canViewAppeals;
@@ -189,7 +193,13 @@ class RoleConfig {
   bool get canViewAuditLogs => role.canViewAuditLogs;
   bool get canImportData => role.canImportData;
 
-  bool get canAssignMembers => role.canAssignMembers || year == 4;
+  // Crew assignment can only be done by all 4th year members and event manager from 3rd year
+  bool get canAssignCrew =>
+      role.isSuperAdmin ||
+      year == 4 ||
+      (year == 3 && (role == UserRole.eventManager || role == UserRole.eventManagerCoEditorial));
+
+  bool get canAssignMembers => canAssignCrew;
 
   bool get canManageEventSchedule => role.isSuperAdmin || 
                                      role == UserRole.eventDirector ||

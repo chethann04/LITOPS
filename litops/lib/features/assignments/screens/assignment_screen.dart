@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/models.dart';
 import '../../../core/enums/enums.dart';
 import '../../../core/widgets/common_widgets.dart';
+import '../../../core/widgets/top_notification.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -76,13 +77,21 @@ class _AssignmentScreenState extends ConsumerState<AssignmentScreen> {
         'assigned_by': profile!.id,
       });
       _loadAssignments(_selectedEvent!.id);
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Assigned'), backgroundColor: LitColors.moss));
+      if (mounted) {
+        AppToast.success(
+          context,
+          'Crew assigned successfully',
+          title: 'Crew Assigned',
+        );
+      }
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Error: $e'), backgroundColor: LitColors.coral));
+      if (mounted) {
+        AppToast.failed(
+          context,
+          'Error assigning crew: $e',
+          title: 'Assignment Failed',
+        );
+      }
     }
   }
 

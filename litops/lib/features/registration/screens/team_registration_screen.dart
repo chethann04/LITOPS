@@ -9,7 +9,8 @@ import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../events/screens/events_screen.dart' show eventConstraintsSummaryProvider;
+import '../../events/screens/events_screen.dart'
+    show eventConstraintsSummaryProvider;
 import '../../../core/utils/responsive.dart';
 
 class TeamRegistrationScreen extends ConsumerStatefulWidget {
@@ -30,7 +31,17 @@ class _TeamRegistrationScreenState
   bool _saving = false;
 
   final List<String> _branches = [
-    'CSE', 'ISE', 'CI', 'CB', 'RI', 'ECE', 'VL', 'EI', 'EE', 'CV', 'ME'
+    'CSE',
+    'ISE',
+    'CI',
+    'CB',
+    'RI',
+    'ECE',
+    'VL',
+    'EI',
+    'EE',
+    'CV',
+    'ME'
   ];
 
   static const _branchDisplayNames = {
@@ -67,7 +78,8 @@ class _TeamRegistrationScreenState
     final usn = _usnCtrl.text.trim().toUpperCase();
     if (usn.isEmpty) return;
 
-    if (_selectedEvent == null || _selectedEvent!.status != EventStatus.registrationOpen) {
+    if (_selectedEvent == null ||
+        _selectedEvent!.status != EventStatus.registrationOpen) {
       if (mounted) {
         AppToast.warning(
           context,
@@ -108,7 +120,9 @@ class _TeamRegistrationScreenState
       }
 
       // Check branch participation constraint
-      final constraintsSummary = ref.read(eventConstraintsSummaryProvider(_selectedEvent!.id)).value ?? [];
+      final constraintsSummary =
+          ref.read(eventConstraintsSummaryProvider(_selectedEvent!.id)).value ??
+              [];
       final constraint = constraintsSummary.firstWhere(
         (c) => c['branch'] == student.branch,
         orElse: () => {},
@@ -116,8 +130,9 @@ class _TeamRegistrationScreenState
       if (constraint.isNotEmpty) {
         final int maxParticipants = constraint['max'] as int;
         final int currentParticipants = constraint['current'] as int;
-        final int pendingCount = _members.where((m) => m.branch == student.branch).length;
-        
+        final int pendingCount =
+            _members.where((m) => m.branch == student.branch).length;
+
         if (currentParticipants + pendingCount + 1 > maxParticipants) {
           if (mounted) {
             AppToast.failed(
@@ -133,7 +148,8 @@ class _TeamRegistrationScreenState
         _members.add(student);
         _captain ??= student;
         if (_members.length == 1 && _teamNameCtrl.text.isEmpty) {
-          _teamNameCtrl.text = _branchDisplayNames[student.branch] ?? student.branch;
+          _teamNameCtrl.text =
+              _branchDisplayNames[student.branch] ?? student.branch;
         }
         _usnCtrl.clear();
       });
@@ -167,12 +183,14 @@ class _TeamRegistrationScreenState
     }
 
     // Final safety check for branch participation constraints
-    final constraintsSummary = ref.read(eventConstraintsSummaryProvider(_selectedEvent!.id)).value ?? [];
+    final constraintsSummary =
+        ref.read(eventConstraintsSummaryProvider(_selectedEvent!.id)).value ??
+            [];
     for (final c in constraintsSummary) {
       final branch = c['branch'] as String;
       final maxVal = c['max'] as int;
       final current = c['current'] as int;
-      
+
       final toRegisterCount = _members.where((m) => m.branch == branch).length;
       if (current + toRegisterCount > maxVal) {
         if (mounted) {
@@ -206,13 +224,17 @@ class _TeamRegistrationScreenState
           'student_id': member.id,
           'is_captain': member.id == _captain?.id,
         });
-        final regData = await SupabaseConfig.client.from(SupabaseTables.registrations).insert({
-          'event_id': _selectedEvent!.id,
-          'student_id': member.id,
-          'team_id': teamData['id'],
-          'registration_method': 'barcode',
-          'registered_by': profile.id,
-        }).select().single();
+        final regData = await SupabaseConfig.client
+            .from(SupabaseTables.registrations)
+            .insert({
+              'event_id': _selectedEvent!.id,
+              'student_id': member.id,
+              'team_id': teamData['id'],
+              'registration_method': 'barcode',
+              'registered_by': profile.id,
+            })
+            .select()
+            .single();
 
         // Auto mark attendance
         await SupabaseConfig.client.from(SupabaseTables.attendance).insert({
@@ -229,7 +251,7 @@ class _TeamRegistrationScreenState
           'Team "${_teamNameCtrl.text}" registered with ${_members.length} members',
           title: 'Team Registered 🎉',
         );
-        
+
         // Invalidate branch constraints summary
         ref.invalidate(eventConstraintsSummaryProvider(_selectedEvent!.id));
 
@@ -276,7 +298,11 @@ class _TeamRegistrationScreenState
             }
           },
         ),
-        title: Text('Team Registration', style: GoogleFonts.fredoka(fontWeight: FontWeight.w600, fontSize: 16, color: LitColors.bone)),
+        title: Text('Team Registration',
+            style: GoogleFonts.fredoka(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: LitColors.bone)),
       ),
       body: ListView(
         padding: context.r.pageInsets,
@@ -289,7 +315,10 @@ class _TeamRegistrationScreenState
               children: [
                 Text(
                   'Select Event',
-                  style: GoogleFonts.fredoka(fontSize: 13.5, fontWeight: FontWeight.bold, color: LitColors.bone),
+                  style: GoogleFonts.fredoka(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.bold,
+                      color: LitColors.bone),
                 ),
                 const SizedBox(height: 10),
                 ClayInsetCard(
@@ -301,7 +330,10 @@ class _TeamRegistrationScreenState
                     decoration: const InputDecoration(border: InputBorder.none),
                     items: _events
                         .map((e) => DropdownMenuItem(
-                            value: e, child: Text('${e.name} (Size: ${e.teamSize})', style: GoogleFonts.plusJakartaSans(color: LitColors.bone, fontSize: 13))))
+                            value: e,
+                            child: Text('${e.name} (Size: ${e.teamSize})',
+                                style: GoogleFonts.plusJakartaSans(
+                                    color: LitColors.bone, fontSize: 13))))
                         .toList(),
                     onChanged: (v) => setState(() => _selectedEvent = v),
                   ),
@@ -319,7 +351,10 @@ class _TeamRegistrationScreenState
               children: [
                 Text(
                   'Team Details',
-                  style: GoogleFonts.fredoka(fontSize: 13.5, fontWeight: FontWeight.bold, color: LitColors.bone),
+                  style: GoogleFonts.fredoka(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.bold,
+                      color: LitColors.bone),
                 ),
                 const SizedBox(height: 10),
                 ClayInsetCard(
@@ -327,16 +362,20 @@ class _TeamRegistrationScreenState
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: DropdownButtonFormField<String>(
                     isExpanded: true,
-                    initialValue: _teamNameCtrl.text.isEmpty ? null : _teamNameCtrl.text,
+                    initialValue:
+                        _teamNameCtrl.text.isEmpty ? null : _teamNameCtrl.text,
                     dropdownColor: LitColors.clay,
                     decoration: const InputDecoration(border: InputBorder.none),
-                    hint: Text('Select Department (Team Name)', style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: 13)),
+                    hint: Text('Select Department (Team Name)',
+                        style: GoogleFonts.plusJakartaSans(
+                            color: LitColors.ash, fontSize: 13)),
                     items: _branches
                         .map((b) => DropdownMenuItem(
-                            value: _branchDisplayNames[b] ?? b, 
+                            value: _branchDisplayNames[b] ?? b,
                             child: Text(
-                              _branchDisplayNames[b] ?? b, 
-                              style: GoogleFonts.plusJakartaSans(color: LitColors.bone, fontSize: 13),
+                              _branchDisplayNames[b] ?? b,
+                              style: GoogleFonts.plusJakartaSans(
+                                  color: LitColors.bone, fontSize: 13),
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                             )))
@@ -363,7 +402,10 @@ class _TeamRegistrationScreenState
               children: [
                 Text(
                   'Add Member',
-                  style: GoogleFonts.fredoka(fontSize: 13.5, fontWeight: FontWeight.bold, color: LitColors.bone),
+                  style: GoogleFonts.fredoka(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.bold,
+                      color: LitColors.bone),
                 ),
                 const SizedBox(height: 10),
                 Row(
@@ -400,7 +442,10 @@ class _TeamRegistrationScreenState
           if (_members.isNotEmpty) ...[
             Text(
               'Members (${_members.length})',
-              style: GoogleFonts.fredoka(fontSize: 15, fontWeight: FontWeight.w600, color: LitColors.bone),
+              style: GoogleFonts.fredoka(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: LitColors.bone),
             ),
             const SizedBox(height: 10),
             ..._members.map((m) => ClayCard(
@@ -410,11 +455,15 @@ class _TeamRegistrationScreenState
                     leading: UserAvatar(name: m.name),
                     title: Text(
                       m.name,
-                      style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: LitColors.bone, fontSize: 13.5),
+                      style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.bold,
+                          color: LitColors.bone,
+                          fontSize: 13.5),
                     ),
                     subtitle: Text(
                       m.usn,
-                      style: GoogleFonts.plusJakartaSans(color: LitColors.ash, fontSize: 11.5),
+                      style: GoogleFonts.plusJakartaSans(
+                          color: LitColors.ash, fontSize: 11.5),
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -423,11 +472,13 @@ class _TeamRegistrationScreenState
                           const StatusChip(label: 'Captain'),
                         const SizedBox(width: 8),
                         IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded, color: LitColors.coral, size: 20),
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              color: LitColors.coral, size: 20),
                           onPressed: () => setState(() {
                             _members.remove(m);
                             if (_captain?.id == m.id) {
-                              _captain = _members.isNotEmpty ? _members.first : null;
+                              _captain =
+                                  _members.isNotEmpty ? _members.first : null;
                             }
                           }),
                         ),
@@ -436,15 +487,19 @@ class _TeamRegistrationScreenState
                     onTap: () => setState(() => _captain = m),
                   ),
                 )),
-            ],
-            const SizedBox(height: 16),
-            ClayButton(
-              onPressed: _saving ? null : _saveTeam,
-              child: _saving
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Color(0xFF1A0D05), strokeWidth: 2))
-                  : const Text('Register Team'),
-            ),
           ],
+          const SizedBox(height: 16),
+          ClayButton(
+            onPressed: _saving ? null : _saveTeam,
+            child: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        color: Color(0xFF1A0D05), strokeWidth: 2))
+                : const Text('Register Team'),
+          ),
+        ],
       ),
     );
   }
