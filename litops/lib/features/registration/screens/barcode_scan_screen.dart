@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/models.dart';
+import '../../../core/enums/enums.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
+import '../../../core/widgets/top_notification.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../events/screens/event_detail_screen.dart';
 import '../../events/screens/events_screen.dart' show eventConstraintsSummaryProvider;
@@ -107,7 +109,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
       _activeSlotIndex = 0;
     } else {
       int size =
-          _selectedEvent!.isTeamEvent ? (_selectedEvent!.teamSize ?? 2) : 1;
+          _selectedEvent!.isTeamEvent ? _selectedEvent!.teamSize : 1;
       _participants = List.filled(size, null);
       _activeSlotIndex = 0;
     }
@@ -139,6 +141,17 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
     if (usn.isEmpty ||
         _selectedEvent == null ||
         _activeSlotIndex >= _participants.length) {
+      return;
+    }
+
+    if (_selectedEvent!.status != EventStatus.registrationOpen) {
+      if (mounted) {
+        AppToast.warning(
+          context,
+          'Registration is closed for "${_selectedEvent!.name}". No new registrations will be accepted.',
+          title: 'Registration Closed',
+        );
+      }
       return;
     }
 
@@ -556,6 +569,17 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
 
   Future<void> _submitRegistration() async {
     if (_selectedEvent == null) return;
+
+    if (_selectedEvent!.status != EventStatus.registrationOpen) {
+      if (mounted) {
+        AppToast.warning(
+          context,
+          'Registration is closed for "${_selectedEvent!.name}". No new registrations will be accepted.',
+          title: 'Registration Closed',
+        );
+      }
+      return;
+    }
 
     // Check branch participation constraint
     final constraintsSummary = ref.read(eventConstraintsSummaryProvider(_selectedEvent!.id)).value ?? [];

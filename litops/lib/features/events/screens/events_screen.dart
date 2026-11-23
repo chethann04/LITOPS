@@ -369,7 +369,38 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
                   ],
                 ),
                 EventConstraintBadges(eventId: event.id),
-                if (event.status == EventStatus.ongoing || event.status == EventStatus.completed || event.status == EventStatus.resultsPublished) ...[
+                if (event.status == EventStatus.registrationOpen) ...[
+                  SizedBox(height: r.h(8)),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: () => context.push('/registration', extra: event),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: r.w(10), vertical: r.h(5)),
+                        decoration: BoxDecoration(
+                          color: LitColors.ember.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: LitColors.ember.withValues(alpha: 0.45)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.qr_code_scanner_rounded, size: r.icon(14), color: LitColors.ember),
+                            SizedBox(width: r.w(5)),
+                            Text(
+                              'Scan QR / Register',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: LitColors.ember,
+                                fontWeight: FontWeight.bold,
+                                fontSize: r.sp(11.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ] else if (event.status == EventStatus.ongoing || event.status == EventStatus.completed || event.status == EventStatus.resultsPublished) ...[
                   SizedBox(height: r.h(8)),
                   Align(
                     alignment: Alignment.centerRight,

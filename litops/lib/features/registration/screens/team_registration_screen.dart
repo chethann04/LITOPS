@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/models.dart';
+import '../../../core/enums/enums.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/widgets/common_widgets.dart';
@@ -65,6 +66,18 @@ class _TeamRegistrationScreenState
   Future<void> _addMember() async {
     final usn = _usnCtrl.text.trim().toUpperCase();
     if (usn.isEmpty) return;
+
+    if (_selectedEvent == null || _selectedEvent!.status != EventStatus.registrationOpen) {
+      if (mounted) {
+        AppToast.warning(
+          context,
+          'Registration is closed for "${_selectedEvent?.name ?? 'this event'}". No new registrations can be taken.',
+          title: 'Registration Closed',
+        );
+      }
+      return;
+    }
+
     try {
       final data = await SupabaseConfig.client
           .from(SupabaseTables.studentMaster)
@@ -74,9 +87,11 @@ class _TeamRegistrationScreenState
           .maybeSingle();
       if (data == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Student not found'),
-              backgroundColor: LitColors.amber));
+          AppToast.warning(
+            context,
+            'Student with USN $usn not found.',
+            title: 'Student Not Found',
+          );
         }
         return;
       }
@@ -137,6 +152,17 @@ class _TeamRegistrationScreenState
     if (_selectedEvent == null ||
         _teamNameCtrl.text.isEmpty ||
         _members.isEmpty) {
+      return;
+    }
+
+    if (_selectedEvent!.status != EventStatus.registrationOpen) {
+      if (mounted) {
+        AppToast.warning(
+          context,
+          'Registration is closed for "${_selectedEvent!.name}". No registrations can be taken.',
+          title: 'Registration Closed',
+        );
+      }
       return;
     }
 

@@ -155,10 +155,22 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
         setState(() {
           _events = (data as List).map((e) => Event.fromJson(e)).toList();
           if (widget.initialEvent != null) {
-            _selectedEvent = _events.firstWhere(
-              (e) => e.id == widget.initialEvent!.id,
-              orElse: () => widget.initialEvent!,
-            );
+            final match = _events.where((e) => e.id == widget.initialEvent!.id).firstOrNull ?? widget.initialEvent!;
+            _selectedEvent = match;
+            if (match.status == EventStatus.registrationOpen) {
+              _initializeSlots();
+              _currentStep = 1;
+            } else {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  AppToast.warning(
+                    context,
+                    'Registration is closed for "${match.name}". No registrations can be taken.',
+                    title: 'Registration Closed',
+                  );
+                }
+              });
+            }
           }
         });
       }
@@ -293,6 +305,17 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
   Future<void> _confirmParticipant() async {
     if (_selectedEvent == null) return;
 
+    if (_selectedEvent!.status != EventStatus.registrationOpen) {
+      if (mounted) {
+        AppToast.warning(
+          context,
+          'Registration is closed for "${_selectedEvent!.name}". No new registrations will be accepted.',
+          title: 'Registration Closed',
+        );
+      }
+      return;
+    }
+
     // Check branch participation constraint
     final constraintsSummary = ref.read(eventConstraintsSummaryProvider(_selectedEvent!.id)).value ?? [];
     final constraint = constraintsSummary.firstWhere(
@@ -308,11 +331,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
       
       if (currentParticipants + pendingCount + 1 > maxParticipants) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Limit exceeded! Only $maxParticipants participants from $_branch are allowed for this event.'),
-              backgroundColor: LitColors.coral,
-            ),
+          AppToast.failed(
+            context,
+            'Limit exceeded! Only $maxParticipants participants from $_branch are allowed for this event.',
+            title: 'Limit Exceeded',
           );
         }
         return;
@@ -323,11 +345,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
     if (_selectedEvent!.isTeamEvent && _teamDepartment != null) {
       if (_branch != _teamDepartment) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('This team already belongs to ${_branchDisplayNames[_teamDepartment]}. Only ${_branchDisplayNames[_teamDepartment]} students can be added.'),
-              backgroundColor: LitColors.amber,
-            ),
+          AppToast.warning(
+            context,
+            'This team already belongs to ${_branchDisplayNames[_teamDepartment]}. Only ${_branchDisplayNames[_teamDepartment]} students can be added.',
+            title: 'Team Department Mismatch',
           );
         }
         return;
@@ -370,11 +391,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
     // Check if already in participants
     if (_participants.any((p) => p?.id == student!.id)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${student.name} is already added!'),
-            backgroundColor: LitColors.amber,
-          ),
+        AppToast.warning(
+          context,
+          '${student.name} is already added!',
+          title: 'Already Added',
         );
       }
       return;
@@ -627,6 +647,36 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
   Future<void> _submitRegistration() async {
     if (_selectedEvent == null) return;
     
+    if (_selectedEvent!.status != EventStatus.registrationOpen) {
+      if (mounted) {
+        AppToast.warning(
+          context,
+          'Registration is closed for "${_selectedEvent!.name}". No new registrations will be accepted.',
+          title: 'Registration Closed',
+        );
+      }
+      return;
+    }
+
+    // Safety check live database status
+    try {
+      final liveStatusRes = await SupabaseConfig.client
+          .from(SupabaseTables.events)
+          .select('status')
+          .eq('id', _selectedEvent!.id)
+          .maybeSingle();
+      if (liveStatusRes != null && liveStatusRes['status'] != EventStatus.registrationOpen.value) {
+        if (mounted) {
+          AppToast.warning(
+            context,
+            'Registration was just closed for "${_selectedEvent!.name}". No registrations can be taken.',
+            title: 'Registration Closed',
+          );
+        }
+        return;
+      }
+    } catch (_) {}
+
     // Final safety check for branch participation constraints
     final constraintsSummary = ref.read(eventConstraintsSummaryProvider(_selectedEvent!.id)).value ?? [];
     for (final c in constraintsSummary) {
@@ -637,11 +687,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
       final toRegisterCount = _participants.where((p) => p != null && p.branch == branch).length;
       if (current + toRegisterCount > maxVal) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Branch limit reached: $branch has reached the maximum of $maxVal participants for this event.'),
-              backgroundColor: LitColors.coral,
-            ),
+          AppToast.failed(
+            context,
+            'Branch limit reached: $branch has reached the maximum of $maxVal participants for this event.',
+            title: 'Branch Limit Reached',
           );
         }
         return;
@@ -669,8 +718,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
 
         if (duplicate != null) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Student already registered!'), backgroundColor: LitColors.amber),
+            AppToast.warning(
+              context,
+              'Student already registered for this event!',
+              title: 'Already Registered',
             );
           }
           setState(() => _submitting = false);
@@ -811,8 +862,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration error: $e'), backgroundColor: LitColors.coral),
+        AppToast.failed(
+          context,
+          'Registration error: $e',
+          title: 'Registration Error',
         );
       }
     } finally {
@@ -931,6 +984,14 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
                 padding: const EdgeInsets.only(bottom: 12),
                 child: GestureDetector(
                   onTap: () {
+                    if (event.status != EventStatus.registrationOpen) {
+                      AppToast.warning(
+                        context,
+                        'Registration is closed for "${event.name}". No new registrations will be accepted.',
+                        title: 'Registration Closed',
+                      );
+                      return;
+                    }
                     setState(() {
                       _selectedEvent = event;
                       _initializeSlots();

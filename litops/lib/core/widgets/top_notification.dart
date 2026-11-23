@@ -530,14 +530,14 @@ class _NotificationItemState extends State<NotificationItem> with TickerProvider
                         ),
                       ),
                     ),
-                    InkWell(
+                    GestureDetector(
                       onTap: widget.notification.onTap != null
                           ? () {
                               widget.notification.onTap!();
                               _dismiss();
                             }
                           : null,
-                      borderRadius: BorderRadius.circular(18),
+                      behavior: HitTestBehavior.opaque,
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
                         child: Row(

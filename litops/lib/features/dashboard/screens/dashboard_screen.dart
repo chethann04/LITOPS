@@ -70,7 +70,11 @@ final ongoingEventsProvider = StreamProvider<List<Event>>((ref) async* {
       final data = await SupabaseConfig.client
           .from(SupabaseTables.events)
           .select()
-          .eq('status', EventStatus.ongoing.value);
+          .inFilter('status', [
+            EventStatus.ongoing.value,
+            EventStatus.registrationOpen.value,
+          ])
+          .order('name');
       return (data as List).map((e) => Event.fromJson(e)).toList();
     } catch (_) {
       return [];
@@ -154,6 +158,7 @@ class DashboardScreen extends ConsumerWidget {
     final roleConfig = ref.watch(roleConfigProvider);
     final profile = roleConfig.profile;
     final statsAsync = ref.watch(dashboardStatsProvider);
+    final ongoingAsync = ref.watch(ongoingEventsProvider);
     
     if (profile != null && !roleConfig.isCoreAdmin) {
       return _buildNonAdminDashboard(context, roleConfig, ref);
@@ -193,6 +198,7 @@ class DashboardScreen extends ConsumerWidget {
             onRefresh: () async {
               await ref.read(authStateProvider.notifier).refreshProfile();
               ref.invalidate(dashboardStatsProvider);
+              ref.invalidate(ongoingEventsProvider);
             },
             child: SingleChildScrollView(
               padding: context.r.pageInsets,
@@ -206,6 +212,26 @@ class DashboardScreen extends ConsumerWidget {
                   ],
                   SizedBox(height: context.r.h(16)),
                   _buildBentoGrid(context, statsAsync, roleConfig.canViewAppeals && !roleConfig.isSuperAdmin),
+                  SizedBox(height: context.r.h(24)),
+                  _FadeIn(delay: 200, child: _buildSectionTitle(context, 'Active & Registration Events')),
+                  SizedBox(height: context.r.h(12)),
+                  ongoingAsync.when(
+                    data: (events) {
+                      if (events.isEmpty) {
+                        return _buildEmptyState(context, 'No events currently active or open for registration.');
+                      }
+                      return Column(
+                        children: events.asMap().entries.map((entry) {
+                          return _FadeIn(
+                            delay: 250 + (entry.key * 50),
+                            child: _buildEventCard(context, entry.value, entry.value.status == EventStatus.ongoing),
+                          );
+                        }).toList(),
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator(color: LitColors.ember)),
+                    error: (e, _) => Text('Error: $e', style: GoogleFonts.plusJakartaSans(color: LitColors.coral, fontSize: context.r.sp(13))),
+                  ),
                   SizedBox(height: context.r.h(24)),
                   _FadeIn(delay: 300, child: _buildSectionTitle(context, 'Quick Services')),
                   SizedBox(height: context.r.h(8)),
@@ -326,18 +352,18 @@ class DashboardScreen extends ConsumerWidget {
                   ],
                   SizedBox(height: r.h(24)),
                   
-                  _FadeIn(delay: 100, child: _buildSectionTitle(context, 'Ongoing Events')),
+                  _FadeIn(delay: 100, child: _buildSectionTitle(context, 'Active & Registration Events')),
                   SizedBox(height: r.h(12)),
                   ongoingAsync.when(
                     data: (events) {
                       if (events.isEmpty) {
-                        return _buildEmptyState(context, 'No events are currently running.');
+                        return _buildEmptyState(context, 'No events currently active or open for registration.');
                       }
                       return Column(
                         children: events.asMap().entries.map((entry) {
                           return _FadeIn(
                             delay: 150 + (entry.key * 50),
-                            child: _buildEventCard(context, entry.value, true),
+                            child: _buildEventCard(context, entry.value, entry.value.status == EventStatus.ongoing),
                           );
                         }).toList(),
                       );
@@ -445,24 +471,36 @@ class DashboardScreen extends ConsumerWidget {
 
   Widget _buildEventCard(BuildContext context, Event event, bool isOngoing) {
     final r = context.r;
+    final isRegOpen = event.status == EventStatus.registrationOpen;
+    final isClosed = event.status == EventStatus.registrationClosed;
+    final isOngoingEvent = isOngoing || event.status == EventStatus.ongoing;
+
     return ClayCard(
       margin: EdgeInsets.only(bottom: r.h(12)),
       padding: EdgeInsets.all(r.w(14)),
-      borderColor: isOngoing ? LitColors.ember.withValues(alpha: 0.4) : null,
+      borderColor: isRegOpen
+          ? LitColors.moss.withValues(alpha: 0.45)
+          : (isOngoingEvent ? LitColors.ember.withValues(alpha: 0.4) : null),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: EdgeInsets.all(r.w(10)),
             decoration: BoxDecoration(
-              color: isOngoing 
-                  ? LitColors.ember.withValues(alpha: 0.15)
-                  : LitColors.clay2,
+              color: isRegOpen
+                  ? LitColors.moss.withValues(alpha: 0.16)
+                  : (isOngoingEvent
+                      ? LitColors.ember.withValues(alpha: 0.15)
+                      : LitColors.clay2),
               borderRadius: BorderRadius.circular(r.radius(12)),
             ),
             child: Icon(
-              isOngoing ? Icons.play_circle_fill_rounded : Icons.event_available_rounded,
-              color: isOngoing ? LitColors.ember : LitColors.ash,
+              isRegOpen
+                  ? Icons.qr_code_scanner_rounded
+                  : (isOngoingEvent ? Icons.play_circle_fill_rounded : Icons.event_available_rounded),
+              color: isRegOpen
+                  ? LitColors.moss
+                  : (isOngoingEvent ? LitColors.ember : LitColors.ash),
               size: r.icon(20),
             ),
           ),
@@ -471,13 +509,40 @@ class DashboardScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  event.name,
-                  style: GoogleFonts.fredoka(
-                    fontWeight: FontWeight.w600,
-                    fontSize: r.sp(14.5),
-                    color: LitColors.bone,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        event.name,
+                        style: GoogleFonts.fredoka(
+                          fontWeight: FontWeight.w600,
+                          fontSize: r.sp(14.5),
+                          color: LitColors.bone,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isRegOpen) ...[
+                      SizedBox(width: r.w(6)),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: r.w(6), vertical: r.h(2)),
+                        decoration: BoxDecoration(
+                          color: LitColors.moss.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(color: LitColors.moss.withValues(alpha: 0.35)),
+                        ),
+                        child: Text(
+                          'REG OPEN',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: LitColors.moss,
+                            fontWeight: FontWeight.w800,
+                            fontSize: r.sp(8.5),
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 SizedBox(height: r.h(4)),
                 Row(
@@ -493,11 +558,38 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-                if (isOngoing) ...[
+                if (isRegOpen) ...[
+                  SizedBox(height: r.h(8)),
+                  GestureDetector(
+                    onTap: () => context.push('/registration', extra: event),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: r.w(10), vertical: r.h(5)),
+                      decoration: BoxDecoration(
+                        color: LitColors.ember.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(7),
+                        border: Border.all(color: LitColors.ember.withValues(alpha: 0.45)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.qr_code_scanner_rounded, size: r.icon(13), color: LitColors.ember),
+                          SizedBox(width: r.w(5)),
+                          Text(
+                            'Scan QR / Register',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: LitColors.ember,
+                              fontWeight: FontWeight.bold,
+                              fontSize: r.sp(11),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ] else if (isOngoingEvent) ...[
                   SizedBox(height: r.h(6)),
-                  InkWell(
+                  GestureDetector(
                     onTap: () => context.push('/results/score/${event.id}'),
-                    borderRadius: BorderRadius.circular(6),
                     child: Container(
                       padding: EdgeInsets.symmetric(horizontal: r.w(8), vertical: r.h(4)),
                       decoration: BoxDecoration(
@@ -520,6 +612,29 @@ class DashboardScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                ] else if (isClosed) ...[
+                  SizedBox(height: r.h(6)),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: r.w(8), vertical: r.h(4)),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lock_outline_rounded, size: r.icon(12), color: LitColors.ash),
+                        SizedBox(width: r.w(4)),
+                        Text(
+                          'Registration Closed',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: LitColors.ash,
+                            fontSize: r.sp(10.5),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

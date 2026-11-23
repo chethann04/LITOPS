@@ -495,10 +495,12 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     if (filters.academicYear != 'All') activeLabels.add(filters.academicYear);
     if (filters.department != 'All') activeLabels.add(filters.department);
     if (filters.year != 'All') activeLabels.add('Year ${filters.year}');
-    if (filters.section != 'All')
+    if (filters.section != 'All') {
       activeLabels.add('Section ${filters.section}');
-    if (filters.searchQuery.isNotEmpty)
+    }
+    if (filters.searchQuery.isNotEmpty) {
       activeLabels.add('Search: "${filters.searchQuery}"');
+    }
 
     final showingText = activeLabels.join('  •  ');
 

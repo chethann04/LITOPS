@@ -10,7 +10,6 @@ import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../../core/utils/responsive.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../../core/config/role_config.dart';
 
 import '../providers/student_providers.dart';
 import '../../../core/models/models.dart';
@@ -21,7 +20,8 @@ class StudentDetailScreen extends ConsumerStatefulWidget {
   const StudentDetailScreen({super.key, required this.studentId});
 
   @override
-  ConsumerState<StudentDetailScreen> createState() => _StudentDetailScreenState();
+  ConsumerState<StudentDetailScreen> createState() =>
+      _StudentDetailScreenState();
 }
 
 class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
@@ -63,7 +63,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
     _usnCtrl.text = s.usn;
     _phoneCtrl.text = s.phone ?? '';
     _emailCtrl.text = s.email ?? '';
-    
+
     final inferredBranch = AppUtils.extractBranchFromUsn(s.usn);
 
     if (AppUtils.branches.contains(inferredBranch)) {
@@ -95,13 +95,16 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
       if (mounted) {
         Navigator.pop(context); // Close dialog
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Student details updated successfully!')),
+          const SnackBar(
+              content: Text('Student details updated successfully!')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update student: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Failed to update student: $e'),
+              backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -129,7 +132,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete student: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Failed to delete student: $e'),
+              backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -146,10 +151,12 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: const Color(0xFF131324),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24)),
               title: Text(
                 'Edit Student Details',
-                style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold),
+                style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white, fontWeight: FontWeight.bold),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -158,22 +165,31 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                     TextFormField(
                       controller: _nameCtrl,
                       style: const TextStyle(color: Colors.white, fontSize: 14),
-                      decoration: const InputDecoration(labelText: 'Name', labelStyle: TextStyle(color: Colors.white60)),
+                      decoration: const InputDecoration(
+                          labelText: 'Name',
+                          labelStyle: TextStyle(color: Colors.white60)),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _usnCtrl,
                       style: const TextStyle(color: Colors.white, fontSize: 14),
                       textCapitalization: TextCapitalization.characters,
-                      decoration: const InputDecoration(labelText: 'USN', labelStyle: TextStyle(color: Colors.white60)),
+                      decoration: const InputDecoration(
+                          labelText: 'USN',
+                          labelStyle: TextStyle(color: Colors.white60)),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: _branch,
                       dropdownColor: const Color(0xFF131324),
                       style: const TextStyle(color: Colors.white, fontSize: 14),
-                      decoration: const InputDecoration(labelText: 'Branch', labelStyle: TextStyle(color: Colors.white60)),
-                      items: AppUtils.branches.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+                      decoration: const InputDecoration(
+                          labelText: 'Branch',
+                          labelStyle: TextStyle(color: Colors.white60)),
+                      items: AppUtils.branches
+                          .map(
+                              (b) => DropdownMenuItem(value: b, child: Text(b)))
+                          .toList(),
                       onChanged: (v) => setDialogState(() => _branch = v!),
                     ),
                     const SizedBox(height: 12),
@@ -181,8 +197,13 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                       initialValue: _year,
                       dropdownColor: const Color(0xFF131324),
                       style: const TextStyle(color: Colors.white, fontSize: 14),
-                      decoration: const InputDecoration(labelText: 'Year', labelStyle: TextStyle(color: Colors.white60)),
-                      items: AppUtils.years.map((y) => DropdownMenuItem(value: y, child: Text('Year $y'))).toList(),
+                      decoration: const InputDecoration(
+                          labelText: 'Year',
+                          labelStyle: TextStyle(color: Colors.white60)),
+                      items: AppUtils.years
+                          .map((y) => DropdownMenuItem(
+                              value: y, child: Text('Year $y')))
+                          .toList(),
                       onChanged: (v) => setDialogState(() => _year = v!),
                     ),
                     const SizedBox(height: 12),
@@ -190,14 +211,18 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                       controller: _phoneCtrl,
                       style: const TextStyle(color: Colors.white, fontSize: 14),
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(labelText: 'Phone', labelStyle: TextStyle(color: Colors.white60)),
+                      decoration: const InputDecoration(
+                          labelText: 'Phone',
+                          labelStyle: TextStyle(color: Colors.white60)),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _emailCtrl,
                       style: const TextStyle(color: Colors.white, fontSize: 14),
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(labelText: 'Email', labelStyle: TextStyle(color: Colors.white60)),
+                      decoration: const InputDecoration(
+                          labelText: 'Email',
+                          labelStyle: TextStyle(color: Colors.white60)),
                     ),
                   ],
                 ),
@@ -205,12 +230,16 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Colors.white54)),
                 ),
                 ElevatedButton(
                   onPressed: _isSaving ? null : () => _updateStudent(s),
                   child: _isSaving
-                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('Save Changes'),
                 ),
               ],
@@ -225,7 +254,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
     ConfirmDialog.show(
       context,
       title: 'Delete Student Record',
-      message: 'Are you sure you want to permanently delete this student record (${s.name})? This will also remove any event registrations for this student.',
+      message:
+          'Are you sure you want to permanently delete this student record (${s.name})? This will also remove any event registrations for this student.',
       confirmText: 'Delete',
       confirmColor: Colors.redAccent,
       onConfirm: () => _deleteStudent(s),
@@ -248,18 +278,23 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        title: const Text('Student Details', style: TextStyle(color: Color(0xFFF3ECE2), fontWeight: FontWeight.bold)),
+        title: const Text('Student Details',
+            style: TextStyle(
+                color: Color(0xFFF3ECE2), fontWeight: FontWeight.bold)),
         foregroundColor: const Color(0xFFF3ECE2),
       ),
       body: studentAsync.when(
         data: (student) {
           if (student == null) {
-            return const Center(child: Text('Student record not found.', style: TextStyle(color: Color(0xFFFF5C5C))));
+            return const Center(
+                child: Text('Student record not found.',
+                    style: TextStyle(color: Color(0xFFFF5C5C))));
           }
 
           final activeArchive = activeArchiveAsync.value;
           final currentFestYear = activeArchive?.festYear ?? 2026;
-          final currentAcadYear = '${currentFestYear - 1}-${currentFestYear.toString().substring(2)}';
+          final currentAcadYear =
+              '${currentFestYear - 1}-${currentFestYear.toString().substring(2)}';
 
           // Fetch event registrations
           final regsAsync = ref.watch(studentRegistrationsProvider(student.id));
@@ -270,30 +305,38 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
 
           return SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
+            padding:
+                const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Warning Banner for Historical Data
                 if (isHistorical) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFB14D).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFFFB14D).withValues(alpha: 0.3)),
+                      border: Border.all(
+                          color:
+                              const Color(0xFFFFB14D).withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.info_outline, color: Color(0xFFFFB14D), size: 20),
+                        const Icon(Icons.info_outline,
+                            color: Color(0xFFFFB14D), size: 20),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             isAuthorizedAdmin
                                 ? 'Historical imported record for Academic Year ${student.academicYear}. (Editable by Admin)'
                                 : 'Read-only historical student record for Academic Year ${student.academicYear}.',
-                            style: GoogleFonts.plusJakartaSans(color: const Color(0xFFFFB14D), fontSize: 11, fontWeight: FontWeight.bold),
+                            style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xFFFFB14D),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
@@ -307,15 +350,20 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                   decoration: BoxDecoration(
                     color: const Color(0xFF1D1A18),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFF262220), width: 1.2),
+                    border:
+                        Border.all(color: const Color(0xFF262220), width: 1.2),
                   ),
                   child: Row(
                     children: [
                       CircleAvatar(
                         radius: 36,
-                        backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                        backgroundColor: Theme.of(context)
+                            .primaryColor
+                            .withValues(alpha: 0.1),
                         child: Text(
-                          student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
+                          student.name.isNotEmpty
+                              ? student.name[0].toUpperCase()
+                              : '?',
                           style: GoogleFonts.plusJakartaSans(
                             color: Theme.of(context).primaryColor,
                             fontWeight: FontWeight.bold,
@@ -346,7 +394,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            _buildStatusChip(regsAsync.value?.isNotEmpty ?? false),
+                            _buildStatusChip(
+                                regsAsync.value?.isNotEmpty ?? false),
                           ],
                         ),
                       ),
@@ -366,26 +415,31 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1D1A18),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFF262220), width: 1.2),
+                    border:
+                        Border.all(color: const Color(0xFF262220), width: 1.2),
                   ),
                   child: Column(
                     children: [
                       _buildDetailRow(
                         'Department/Branch',
-                        AppUtils.branches.contains(AppUtils.extractBranchFromUsn(student.usn))
+                        AppUtils.branches.contains(
+                                AppUtils.extractBranchFromUsn(student.usn))
                             ? AppUtils.extractBranchFromUsn(student.usn)
                             : AppUtils.mapUsnBranchToOfficial(student.branch),
                       ),
                       _buildDivider(),
                       _buildDetailRow('Study Year', 'Year ${student.year}'),
                       _buildDivider(),
-                      _buildDetailRow('Academic Year', student.academicYear ?? 'N/A'),
+                      _buildDetailRow(
+                          'Academic Year', student.academicYear ?? 'N/A'),
                       _buildDivider(),
-                      _buildDetailRow('Data Source', isHistorical ? 'Historical' : 'Current Year'),
+                      _buildDetailRow('Data Source',
+                          isHistorical ? 'Historical' : 'Current Year'),
                       if (student.stream != null) ...[
                         _buildDivider(),
                         _buildDetailRow('Stream', student.stream!),
@@ -410,17 +464,21 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1D1A18),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFF262220), width: 1.2),
+                    border:
+                        Border.all(color: const Color(0xFF262220), width: 1.2),
                   ),
                   child: Column(
                     children: [
-                      _buildDetailRow('Mobile Number', student.phone ?? 'Not Available'),
+                      _buildDetailRow(
+                          'Mobile Number', student.phone ?? 'Not Available'),
                       _buildDivider(),
-                      _buildDetailRow('Email Address', student.email ?? 'Not Available'),
+                      _buildDetailRow(
+                          'Email Address', student.email ?? 'Not Available'),
                     ],
                   ),
                 ),
@@ -445,15 +503,18 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                         decoration: BoxDecoration(
                           color: const Color(0xFF1D1A18),
                           borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: const Color(0xFF262220), width: 1.2),
+                          border: Border.all(
+                              color: const Color(0xFF262220), width: 1.2),
                         ),
                         child: Column(
                           children: [
-                            const Icon(Icons.event_busy_outlined, color: Color(0xFF8C857C), size: 36),
+                            const Icon(Icons.event_busy_outlined,
+                                color: Color(0xFF8C857C), size: 36),
                             const SizedBox(height: 12),
                             Text(
                               'Not registered for any events this year.',
-                              style: GoogleFonts.plusJakartaSans(color: const Color(0xFF8C857C), fontSize: 13),
+                              style: GoogleFonts.plusJakartaSans(
+                                  color: const Color(0xFF8C857C), fontSize: 13),
                               textAlign: TextAlign.center,
                             ),
                           ],
@@ -467,13 +528,14 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                       itemCount: regs.length,
                       itemBuilder: (context, idx) {
                         final reg = regs[idx];
-                        final eventMap = reg['events'] as Map<String, dynamic>? ?? {};
+                        final eventMap =
+                            reg['events'] as Map<String, dynamic>? ?? {};
                         final teamMap = reg['teams'] as Map<String, dynamic>?;
 
                         final eventName = eventMap['title'] ?? 'Unknown Event';
                         final eventCategory = eventMap['category'] ?? 'General';
-                        final registeredAt = reg['registered_at'] != null 
-                            ? DateTime.parse(reg['registered_at'] as String) 
+                        final registeredAt = reg['registered_at'] != null
+                            ? DateTime.parse(reg['registered_at'] as String)
                             : DateTime.now();
                         final method = reg['registration_method'] ?? 'manual';
 
@@ -483,13 +545,15 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                           decoration: BoxDecoration(
                             color: const Color(0xFF1D1A18),
                             borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: const Color(0xFF262220), width: 1.2),
+                            border: Border.all(
+                                color: const Color(0xFF262220), width: 1.2),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Text(
@@ -505,12 +569,16 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                                 ],
                               ),
                               const SizedBox(height: 8),
-                              _buildEventDetailItem('Registration Method', RegistrationMethod.fromString(method).label),
-                              _buildEventDetailItem('Registration Timestamp', AppUtils.formatDateTime(registeredAt)),
+                              _buildEventDetailItem('Registration Method',
+                                  RegistrationMethod.fromString(method).label),
+                              _buildEventDetailItem('Registration Timestamp',
+                                  AppUtils.formatDateTime(registeredAt)),
                               if (teamMap != null)
-                                _buildEventDetailItem('Team Name', teamMap['team_name'] ?? 'Registered Team')
+                                _buildEventDetailItem('Team Name',
+                                    teamMap['team_name'] ?? 'Registered Team')
                               else
-                                _buildEventDetailItem('Participation Type', 'Individual (Solo)'),
+                                _buildEventDetailItem(
+                                    'Participation Type', 'Individual (Solo)'),
                             ],
                           ),
                         );
@@ -523,7 +591,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                       child: CircularProgressIndicator(),
                     ),
                   ),
-                  error: (e, _) => Center(child: Text('Error loading registrations: $e', style: const TextStyle(color: Color(0xFFFF5C5C)))),
+                  error: (e, _) => Center(
+                      child: Text('Error loading registrations: $e',
+                          style: const TextStyle(color: Color(0xFFFF5C5C)))),
                 ),
               ],
             ),
@@ -532,16 +602,18 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
         loading: () => const LoadingView(message: 'Loading student...'),
         error: (err, _) => ErrorView(
           message: 'Error loading student: $err',
-          onRetry: () => ref.invalidate(studentDetailsProvider(widget.studentId)),
+          onRetry: () =>
+              ref.invalidate(studentDetailsProvider(widget.studentId)),
         ),
       ),
       bottomNavigationBar: studentAsync.when(
         data: (student) {
           if (student == null) return const SizedBox.shrink();
-          
+
           final activeArchive = activeArchiveAsync.value;
           final currentFestYear = activeArchive?.festYear ?? 2026;
-          final currentAcadYear = '${currentFestYear - 1}-${currentFestYear.toString().substring(2)}';
+          final currentAcadYear =
+              '${currentFestYear - 1}-${currentFestYear.toString().substring(2)}';
           final bool isHistorical = student.academicYear != currentAcadYear;
           final bool canEdit = !isHistorical || isAuthorizedAdmin;
 
@@ -550,7 +622,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
           return Container(
             decoration: const BoxDecoration(
               color: Color(0xFF0A0A0A),
-              border: Border(top: BorderSide(color: Color(0xFF262220), width: 1.2)),
+              border:
+                  Border(top: BorderSide(color: Color(0xFF262220), width: 1.2)),
             ),
             padding: EdgeInsets.only(
               left: 16,
@@ -570,23 +643,31 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Edit Student', style: TextStyle(fontWeight: FontWeight.bold)),
+                      label: const Text('Edit Student',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
                 if (canEdit && isAuthorizedAdmin) const SizedBox(width: 12),
                 if (isAuthorizedAdmin)
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: _isDeleting ? null : () => _showDeleteConfirmation(student),
+                      onPressed: _isDeleting
+                          ? null
+                          : () => _showDeleteConfirmation(student),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.redAccent,
                         side: const BorderSide(color: Colors.redAccent),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      icon: _isDeleting 
-                          ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.redAccent))
+                      icon: _isDeleting
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.redAccent))
                           : const Icon(Icons.delete_outline),
-                      label: const Text('Delete Student', style: TextStyle(fontWeight: FontWeight.bold)),
+                      label: const Text('Delete Student',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
               ],
@@ -605,8 +686,16 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF8C857C), fontSize: 13, fontWeight: FontWeight.w600)),
-          Text(value, style: GoogleFonts.plusJakartaSans(color: const Color(0xFFF3ECE2), fontSize: 13, fontWeight: FontWeight.bold)),
+          Text(label,
+              style: GoogleFonts.plusJakartaSans(
+                  color: const Color(0xFF8C857C),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+          Text(value,
+              style: GoogleFonts.plusJakartaSans(
+                  color: const Color(0xFFF3ECE2),
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -618,8 +707,14 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF8C857C), fontSize: 11)),
-          Text(value, style: GoogleFonts.plusJakartaSans(color: const Color(0xFFF3ECE2), fontSize: 11, fontWeight: FontWeight.w600)),
+          Text(label,
+              style: GoogleFonts.plusJakartaSans(
+                  color: const Color(0xFF8C857C), fontSize: 11)),
+          Text(value,
+              style: GoogleFonts.plusJakartaSans(
+                  color: const Color(0xFFF3ECE2),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -633,10 +728,14 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: isReg ? const Color(0xFF6FAE8F).withValues(alpha: 0.15) : const Color(0xFFFF5C5C).withValues(alpha: 0.15),
+        color: isReg
+            ? const Color(0xFF6FAE8F).withValues(alpha: 0.15)
+            : const Color(0xFFFF5C5C).withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isReg ? const Color(0xFF6FAE8F).withValues(alpha: 0.3) : const Color(0xFFFF5C5C).withValues(alpha: 0.3),
+          color: isReg
+              ? const Color(0xFF6FAE8F).withValues(alpha: 0.3)
+              : const Color(0xFFFF5C5C).withValues(alpha: 0.3),
         ),
       ),
       child: Row(

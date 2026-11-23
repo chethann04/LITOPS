@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/widgets/common_widgets.dart';
-import '../../../core/enums/enums.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/config/role_config.dart';
 
@@ -19,19 +18,17 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final roleConfig = ref.watch(roleConfigProvider);
     final currentLocation = GoRouterState.of(context).matchedLocation;
-    
+
     // Only show navbar if current location is EXACTLY one of the top-level routes
     final bool shouldShowNavbar = routesWithNavbar.contains(currentLocation);
-    
+
     print("=== AppShell Debug ===");
     print("currentLocation = '$currentLocation'");
     print("shouldShowNavbar = $shouldShowNavbar");
     print("routesWithNavbar = $routesWithNavbar");
     print("=== End AppShell Debug ===");
- 
+
     final navItems = roleConfig.getNavItems();
-
-
 
     int calculateSelectedIndex() {
       for (int i = 0; i < navItems.length; i++) {
@@ -49,7 +46,7 @@ class AppShell extends ConsumerWidget {
     }
 
     final isScheduling = currentLocation == '/scheduling';
-    
+
     return Scaffold(
       backgroundColor: LitColors.void_,
       body: child,
@@ -87,7 +84,8 @@ class ClayBottomNavBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF080808),
         borderRadius: BorderRadius.circular(r.radius(36)),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
+        border:
+            Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -119,7 +117,8 @@ class ClayBottomNavBar extends StatelessWidget {
                     ),
                     child: Icon(
                       isSelected ? item.selectedIcon : item.icon,
-                      color: isSelected ? const Color(0xFF1A0D05) : LitColors.ash,
+                      color:
+                          isSelected ? const Color(0xFF1A0D05) : LitColors.ash,
                       size: r.icon(22),
                     ),
                   ),

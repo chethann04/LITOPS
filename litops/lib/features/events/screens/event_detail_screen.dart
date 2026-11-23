@@ -638,22 +638,47 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                     children: [
                       if (currentStatus == EventStatus.registrationOpen && isAllowedToRegister) ...[
                         ClayButton(
-                          onPressed: () => context.go('/registration', extra: event),
+                          onPressed: () => context.push('/registration', extra: event),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.qr_code_scanner, size: context.r.icon(16)),
                               SizedBox(width: context.r.w(8)),
-                              const Text('Register Now'),
+                              const Text('Scan QR / Register Now'),
                             ],
                           ),
                         ),
                         SizedBox(height: context.r.h(8)),
                         Text(
-                          'Waitlist enabled · Secured by Supabase Auth',
+                          'Registration Open · Tap to scan QR or register participants',
                           style: GoogleFonts.plusJakartaSans(
                             color: LitColors.ash,
                             fontSize: context.r.sp(10),
+                          ),
+                        ),
+                      ] else if (currentStatus == EventStatus.registrationClosed) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(vertical: context.r.h(12)),
+                          decoration: BoxDecoration(
+                            color: LitColors.clay2,
+                            borderRadius: BorderRadius.circular(context.r.radius(12)),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.lock_rounded, size: context.r.icon(15), color: LitColors.ash),
+                              SizedBox(width: context.r.w(6)),
+                              Text(
+                                'Registration Closed — No New Registrations',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: LitColors.ash,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: context.r.sp(12),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],

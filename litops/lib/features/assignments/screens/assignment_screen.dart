@@ -8,7 +8,6 @@ import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../core/config/role_config.dart';
 
 class AssignmentScreen extends ConsumerStatefulWidget {
   final Event? initialEvent;
@@ -26,11 +25,20 @@ class _AssignmentScreenState extends ConsumerState<AssignmentScreen> {
   String _searchQuery = '';
 
   @override
-  void initState() { super.initState(); _loadData(); }
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
   Future<void> _loadData() async {
-    final eventData = await SupabaseConfig.client.from(SupabaseTables.events).select().order('name');
-    final userData = await SupabaseConfig.client.from(SupabaseTables.profiles).select().eq('is_active', true);
+    final eventData = await SupabaseConfig.client
+        .from(SupabaseTables.events)
+        .select()
+        .order('name');
+    final userData = await SupabaseConfig.client
+        .from(SupabaseTables.profiles)
+        .select()
+        .eq('is_active', true);
     setState(() {
       _events = (eventData as List).map((e) => Event.fromJson(e)).toList();
       _users = (userData as List).map((u) => Profile.fromJson(u)).toList();
@@ -46,8 +54,15 @@ class _AssignmentScreenState extends ConsumerState<AssignmentScreen> {
 
   Future<void> _loadAssignments(String eventId) async {
     setState(() => _loading = true);
-    final data = await SupabaseConfig.client.from(SupabaseTables.eventAssignments).select().eq('event_id', eventId);
-    setState(() { _assignments = (data as List).map((a) => EventAssignment.fromJson(a)).toList(); _loading = false; });
+    final data = await SupabaseConfig.client
+        .from(SupabaseTables.eventAssignments)
+        .select()
+        .eq('event_id', eventId);
+    setState(() {
+      _assignments =
+          (data as List).map((a) => EventAssignment.fromJson(a)).toList();
+      _loading = false;
+    });
   }
 
   Future<void> _assign(String userId, AssignmentRole role) async {
@@ -55,13 +70,19 @@ class _AssignmentScreenState extends ConsumerState<AssignmentScreen> {
     final profile = ref.read(currentProfileProvider);
     try {
       await SupabaseConfig.client.from(SupabaseTables.eventAssignments).insert({
-        'event_id': _selectedEvent!.id, 'user_id': userId,
-        'assignment_role': role.value, 'assigned_by': profile!.id,
+        'event_id': _selectedEvent!.id,
+        'user_id': userId,
+        'assignment_role': role.value,
+        'assigned_by': profile!.id,
       });
       _loadAssignments(_selectedEvent!.id);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Assigned'), backgroundColor: LitColors.moss));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Assigned'), backgroundColor: LitColors.moss));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: LitColors.coral));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error: $e'), backgroundColor: LitColors.coral));
     }
   }
 
@@ -82,7 +103,11 @@ class _AssignmentScreenState extends ConsumerState<AssignmentScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        title: Text('Event Assignments', style: GoogleFonts.fredoka(fontWeight: FontWeight.w600, fontSize: 16, color: LitColors.bone)),
+        title: Text('Event Assignments',
+            style: GoogleFonts.fredoka(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: LitColors.bone)),
       ),
       body: Column(
         children: [
@@ -96,7 +121,10 @@ class _AssignmentScreenState extends ConsumerState<AssignmentScreen> {
                 children: [
                   Text(
                     'Select Event',
-                    style: GoogleFonts.fredoka(fontSize: 13.5, fontWeight: FontWeight.bold, color: LitColors.bone),
+                    style: GoogleFonts.fredoka(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.bold,
+                        color: LitColors.bone),
                   ),
                   const SizedBox(height: 10),
                   ClayInsetCard(
@@ -105,8 +133,15 @@ class _AssignmentScreenState extends ConsumerState<AssignmentScreen> {
                     child: DropdownButtonFormField<Event>(
                       initialValue: _selectedEvent,
                       dropdownColor: LitColors.clay,
-                      decoration: const InputDecoration(border: InputBorder.none),
-                      items: _events.map((e) => DropdownMenuItem(value: e, child: Text(e.name, style: GoogleFonts.plusJakartaSans(color: LitColors.bone, fontSize: 13)))).toList(),
+                      decoration:
+                          const InputDecoration(border: InputBorder.none),
+                      items: _events
+                          .map((e) => DropdownMenuItem(
+                              value: e,
+                              child: Text(e.name,
+                                  style: GoogleFonts.plusJakartaSans(
+                                      color: LitColors.bone, fontSize: 13))))
+                          .toList(),
                       onChanged: (v) {
                         setState(() => _selectedEvent = v);
                         if (v != null) _loadAssignments(v.id);
@@ -117,7 +152,7 @@ class _AssignmentScreenState extends ConsumerState<AssignmentScreen> {
               ),
             ),
           ),
-          
+
           if (_selectedEvent != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -127,16 +162,24 @@ class _AssignmentScreenState extends ConsumerState<AssignmentScreen> {
                 onChanged: (v) => setState(() => _searchQuery = v),
               ),
             ),
-            
+
           Expanded(
             child: _selectedEvent == null
-                ? Center(child: Text('Select an event to view and manage assignments.', style: GoogleFonts.plusJakartaSans(color: LitColors.ash)))
+                ? Center(
+                    child: Text(
+                        'Select an event to view and manage assignments.',
+                        style:
+                            GoogleFonts.plusJakartaSans(color: LitColors.ash)))
                 : _loading
                     ? const LoadingView()
                     : filteredUsers.isEmpty
-                        ? Center(child: Text('No members found.', style: GoogleFonts.plusJakartaSans(color: LitColors.ash)))
+                        ? Center(
+                            child: Text('No members found.',
+                                style: GoogleFonts.plusJakartaSans(
+                                    color: LitColors.ash)))
                         : ListView.builder(
-                            padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 130),
+                            padding: const EdgeInsets.only(
+                                left: 16, right: 16, top: 8, bottom: 130),
                             itemCount: filteredUsers.length,
                             itemBuilder: (ctx, i) {
                               final user = filteredUsers[i];
@@ -146,74 +189,92 @@ class _AssignmentScreenState extends ConsumerState<AssignmentScreen> {
 
                               return ClayCard(
                                 margin: const EdgeInsets.only(bottom: 8),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 12),
                                 child: Row(
-                                      mainAxisSize: MainAxisSize.max,
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      children: [
-                                        UserAvatar(name: user.fullName),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                user.fullName,
-                                                style: GoogleFonts.plusJakartaSans(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 13,
-                                                  color: LitColors.bone,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Row(
-                                                children: [
-                                                  Text(
-                                                    user.role.label,
-                                                    style: GoogleFonts.dancingScript(color: LitColors.amber, fontSize: 14, fontWeight: FontWeight.bold),
-                                                  ),
-                                                  if (userAssignments.isNotEmpty) ...[
-                                                    const SizedBox(width: 8),
-                                                    const StatusChip(label: 'Assigned'),
-                                                  ],
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        if (isAuthorized)
-                                          Padding(
-                                            padding: const EdgeInsets.only(left: 8),
-                                            child: ClayButton(
-                                              width: 90,
-                                              height: 40,
-                                              borderRadius: 12,
-                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                              isDanger: userAssignments.isNotEmpty,
-                                              isGhost: userAssignments.isEmpty,
-                                              onPressed: userAssignments.isNotEmpty
-                                                  ? () async {
-                                                      for (final a in userAssignments) {
-                                                        await SupabaseConfig.client
-                                                            .from(SupabaseTables.eventAssignments)
-                                                            .delete()
-                                                            .eq('id', a.id);
-                                                      }
-                                                      _loadAssignments(_selectedEvent!.id);
-                                                    }
-                                                  : () => _assign(user.id, AssignmentRole.volunteer),
-                                              child: Text(
-                                                userAssignments.isNotEmpty ? 'Unassign' : 'Assign',
-                                                style: GoogleFonts.plusJakartaSans(
-                                                  color: userAssignments.isNotEmpty ? const Color(0xFF1A0D05) : LitColors.ember,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
+                                  mainAxisSize: MainAxisSize.max,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    UserAvatar(name: user.fullName),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            user.fullName,
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: LitColors.bone,
                                             ),
                                           ),
-                                      ],
+                                          const SizedBox(height: 2),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                user.role.label,
+                                                style:
+                                                    GoogleFonts.dancingScript(
+                                                        color: LitColors.amber,
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.bold),
+                                              ),
+                                              if (userAssignments
+                                                  .isNotEmpty) ...[
+                                                const SizedBox(width: 8),
+                                                const StatusChip(
+                                                    label: 'Assigned'),
+                                              ],
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
+                                    if (isAuthorized)
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 8),
+                                        child: ClayButton(
+                                          width: 90,
+                                          height: 40,
+                                          borderRadius: 12,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 8),
+                                          isDanger: userAssignments.isNotEmpty,
+                                          isGhost: userAssignments.isEmpty,
+                                          onPressed: userAssignments.isNotEmpty
+                                              ? () async {
+                                                  for (final a
+                                                      in userAssignments) {
+                                                    await SupabaseConfig.client
+                                                        .from(SupabaseTables
+                                                            .eventAssignments)
+                                                        .delete()
+                                                        .eq('id', a.id);
+                                                  }
+                                                  _loadAssignments(
+                                                      _selectedEvent!.id);
+                                                }
+                                              : () => _assign(user.id,
+                                                  AssignmentRole.volunteer),
+                                          child: Text(
+                                            userAssignments.isNotEmpty
+                                                ? 'Unassign'
+                                                : 'Assign',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              color: userAssignments.isNotEmpty
+                                                  ? const Color(0xFF1A0D05)
+                                                  : LitColors.ember,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               );
                             },
                           ),

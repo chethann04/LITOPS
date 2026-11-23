@@ -10,7 +10,6 @@ import '../../admin/screens/points_management_screen.dart'; // for adminEventsPr
 import '../providers/scheduling_providers.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../core/config/role_config.dart';
 
 class EventSchedulingScreen extends ConsumerStatefulWidget {
   const EventSchedulingScreen({super.key});
@@ -113,7 +112,8 @@ class _EventSchedulingScreenState extends ConsumerState<EventSchedulingScreen>
           ? Padding(
               padding: EdgeInsets.only(bottom: context.r.h(100)),
               child: FloatingActionButton(
-                onPressed: () => _showScheduleForm(context, eventsAsync.valueOrNull ?? []),
+                onPressed: () =>
+                    _showScheduleForm(context, eventsAsync.valueOrNull ?? []),
                 backgroundColor: const Color(0xFF6366F1),
                 child: const Icon(Icons.add_rounded, color: Colors.white),
               ),
@@ -751,7 +751,8 @@ class _EventSchedulingScreenState extends ConsumerState<EventSchedulingScreen>
                           }
                         },
                         items: branches
-                            .map((b) => DropdownMenuItem(value: b, child: Text(b)))
+                            .map((b) =>
+                                DropdownMenuItem(value: b, child: Text(b)))
                             .toList(),
                       ),
                     ),
@@ -779,8 +780,8 @@ class _EventSchedulingScreenState extends ConsumerState<EventSchedulingScreen>
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child:
-                      const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Colors.white54)),
                 ),
                 ElevatedButton(
                   onPressed: () async {

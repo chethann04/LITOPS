@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/models/models.dart';
@@ -11,7 +10,6 @@ import '../../../core/widgets/common_widgets.dart';
 import '../../../core/enums/enums.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../core/config/role_config.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../results/screens/results_screen.dart'; // To use ResultsStandingsSheet
@@ -44,10 +42,21 @@ class EventResult {
   });
 }
 
-final leaderboardProvider = StreamProvider<List<DepartmentResult>>((ref) async* {
+final leaderboardProvider =
+    StreamProvider<List<DepartmentResult>>((ref) async* {
   // List of ALL participating departments
   final allDepartments = [
-    'CSE', 'ISE', 'CI', 'CB', 'RI', 'ECE', 'VL', 'EI', 'EE', 'CV', 'ME'
+    'CSE',
+    'ISE',
+    'CI',
+    'CB',
+    'RI',
+    'ECE',
+    'VL',
+    'EI',
+    'EE',
+    'CV',
+    'ME'
   ];
 
   // Watch for changes in results and events to rebuild standings in real-time
@@ -63,8 +72,10 @@ final leaderboardProvider = StreamProvider<List<DepartmentResult>>((ref) async* 
   final timer = Timer.periodic(const Duration(seconds: 4), (_) {
     if (!controller.isClosed) controller.add(null);
   });
-  final sub1 = resultsStream.listen((_) => controller.add(null), onError: (e) => debugPrint('Leaderboard resultsStream error: $e'));
-  final sub2 = eventsStream.listen((_) => controller.add(null), onError: (e) => debugPrint('Leaderboard eventsStream error: $e'));
+  final sub1 = resultsStream.listen((_) => controller.add(null),
+      onError: (e) => debugPrint('Leaderboard resultsStream error: $e'));
+  final sub2 = eventsStream.listen((_) => controller.add(null),
+      onError: (e) => debugPrint('Leaderboard eventsStream error: $e'));
 
   ref.onDispose(() {
     timer.cancel();
@@ -98,7 +109,8 @@ final leaderboardProvider = StreamProvider<List<DepartmentResult>>((ref) async* 
         continue;
       }
 
-      final publishedEventIds = eventsData.map((e) => e['id'] as String).toList();
+      final publishedEventIds =
+          eventsData.map((e) => e['id'] as String).toList();
 
       // Create a map for quick event lookup
       final eventMap = <String, String>{};
@@ -112,11 +124,13 @@ final leaderboardProvider = StreamProvider<List<DepartmentResult>>((ref) async* 
       // Fetch all results for these published events (including score, registrations and student_master)
       final resultsData = await SupabaseConfig.client
           .from(SupabaseTables.results)
-          .select('event_id, position, score, registrations!inner(student_master(branch))')
+          .select(
+              'event_id, position, score, registrations!inner(student_master(branch))')
           .inFilter('event_id', publishedEventIds);
 
       final departmentData = <String, Map<String, dynamic>>{};
-      final eventPointsPerBranch = <String, Map<String, Map<String, dynamic>>>{};
+      final eventPointsPerBranch =
+          <String, Map<String, Map<String, dynamic>>>{};
 
       // Initialize ALL departments with 0 points
       for (final dept in allDepartments) {
@@ -129,7 +143,8 @@ final leaderboardProvider = StreamProvider<List<DepartmentResult>>((ref) async* 
 
       for (final row in resultsData as List) {
         final reg = row['registrations'] as Map<String, dynamic>?;
-        final student = reg != null ? reg['student_master'] as Map<String, dynamic>? : null;
+        final student =
+            reg != null ? reg['student_master'] as Map<String, dynamic>? : null;
         if (student == null) continue;
 
         final rawBranch = student['branch'] as String?;
@@ -157,7 +172,8 @@ final leaderboardProvider = StreamProvider<List<DepartmentResult>>((ref) async* 
         }
 
         // Update total branch points
-        departmentData[branch]!['totalPoints'] = (departmentData[branch]!['totalPoints'] as int) + pointsVal;
+        departmentData[branch]!['totalPoints'] =
+            (departmentData[branch]!['totalPoints'] as int) + pointsVal;
 
         // Group by event
         if (!eventPointsPerBranch[branch]!.containsKey(eventId)) {
@@ -169,7 +185,8 @@ final leaderboardProvider = StreamProvider<List<DepartmentResult>>((ref) async* 
           };
         }
         final eventInfo = eventPointsPerBranch[branch]![eventId]!;
-        eventInfo['totalEventPoints'] = (eventInfo['totalEventPoints'] as int) + pointsVal;
+        eventInfo['totalEventPoints'] =
+            (eventInfo['totalEventPoints'] as int) + pointsVal;
 
         // Keep winner/runner_up preference for display position
         if (position == 'winner' || eventInfo['position'] == 'participation') {
@@ -194,7 +211,8 @@ final leaderboardProvider = StreamProvider<List<DepartmentResult>>((ref) async* 
 
       // Sort departments by total points descending
       final sortedBranches = departmentData.entries.toList()
-        ..sort((a, b) => (b.value['totalPoints'] as int).compareTo(a.value['totalPoints'] as int));
+        ..sort((a, b) => (b.value['totalPoints'] as int)
+            .compareTo(a.value['totalPoints'] as int));
 
       // Convert to DepartmentResult
       final resultList = <DepartmentResult>[];
@@ -202,7 +220,8 @@ final leaderboardProvider = StreamProvider<List<DepartmentResult>>((ref) async* 
       for (int i = 0; i < sortedBranches.length; i++) {
         final entry = sortedBranches[i];
         final pts = entry.value['totalPoints'] as int;
-        if (i > 0 && pts < (sortedBranches[i - 1].value['totalPoints'] as int)) {
+        if (i > 0 &&
+            pts < (sortedBranches[i - 1].value['totalPoints'] as int)) {
           currentRank = i + 1;
         }
         resultList.add(
@@ -309,7 +328,8 @@ class LeaderboardScreen extends ConsumerWidget {
             ? _buildClubMembersSection(context, ref)
             : TabBarView(
                 children: [
-                  _buildOverallStandingsTab(context, ref, leaderboardAsync, userBranch),
+                  _buildOverallStandingsTab(
+                      context, ref, leaderboardAsync, userBranch),
                   _buildPublishedEventsTab(context, ref),
                 ],
               ),
@@ -378,15 +398,20 @@ class LeaderboardScreen extends ConsumerWidget {
           });
         }
 
-        final orderedRoles = UserRole.values.where((r) => grouped.containsKey(r)).toList();
-        
+        final orderedRoles =
+            UserRole.values.where((r) => grouped.containsKey(r)).toList();
+
         // Sort roles so they are ordered/aligned according to years
         orderedRoles.sort((a, b) {
           final membersA = grouped[a]!;
-          final maxYearA = membersA.map((m) => m.academicYear ?? 0).fold<int>(0, (max, y) => y > max ? y : max);
+          final maxYearA = membersA
+              .map((m) => m.academicYear ?? 0)
+              .fold<int>(0, (max, y) => y > max ? y : max);
 
           final membersB = grouped[b]!;
-          final maxYearB = membersB.map((m) => m.academicYear ?? 0).fold<int>(0, (max, y) => y > max ? y : max);
+          final maxYearB = membersB
+              .map((m) => m.academicYear ?? 0)
+              .fold<int>(0, (max, y) => y > max ? y : max);
 
           if (maxYearA != maxYearB) {
             return maxYearB.compareTo(maxYearA); // Higher year first
@@ -427,12 +452,14 @@ class LeaderboardScreen extends ConsumerWidget {
                       ...roleMembers.map((member) {
                         return ClayCard(
                           margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
                           child: Row(
                             children: [
                               UserAvatar(
                                 name: member.fullName,
-                                imageUrl: member.photoUrl ?? member.profileImage,
+                                imageUrl:
+                                    member.photoUrl ?? member.profileImage,
                                 radius: 18,
                               ),
                               const SizedBox(width: 12),
@@ -448,7 +475,8 @@ class LeaderboardScreen extends ConsumerWidget {
                               ),
                               if (member.academicYear != null)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: LitColors.clay2,
                                     borderRadius: BorderRadius.circular(12),
@@ -481,7 +509,8 @@ class LeaderboardScreen extends ConsumerWidget {
           child: SizedBox(
             height: 20,
             width: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: LitColors.ember),
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: LitColors.ember),
           ),
         ),
       ),
@@ -517,7 +546,8 @@ class LeaderboardScreen extends ConsumerWidget {
                 const EmptyView(
                   icon: Icons.emoji_events_rounded,
                   title: 'Leaderboard is empty',
-                  subtitle: 'Points will appear here once event results are published.',
+                  subtitle:
+                      'Points will appear here once event results are published.',
                 ),
               ],
             ),
@@ -527,7 +557,8 @@ class LeaderboardScreen extends ConsumerWidget {
         final maxPoints = departments.first.totalPoints;
         final maxPointsVal = maxPoints > 0 ? maxPoints : 1;
 
-        final itemCount = 3 + departments.length; // header + legend + list + bottom
+        final itemCount =
+            3 + departments.length; // header + legend + list + bottom
         return RefreshIndicator(
           onRefresh: () async => ref.invalidate(leaderboardProvider),
           color: LitColors.ember,
@@ -571,7 +602,8 @@ class LeaderboardScreen extends ConsumerWidget {
                 // Department card
                 final deptIndex = index - 2;
                 final dept = departments[deptIndex];
-                final isUserBranch = userBranch != null && dept.department.toUpperCase() == userBranch.toUpperCase();
+                final isUserBranch = userBranch != null &&
+                    dept.department.toUpperCase() == userBranch.toUpperCase();
                 final ratio = dept.totalPoints / maxPointsVal;
                 return RepaintBoundary(
                   child: _DepartmentCard(
@@ -667,7 +699,8 @@ class LeaderboardScreen extends ConsumerWidget {
                     ),
                     const SizedBox(width: 8),
                     ClayButton(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       borderRadius: 8,
                       onPressed: () {
                         showModalBottomSheet(
@@ -709,7 +742,8 @@ class LeaderboardScreen extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.format_quote_rounded, color: LitColors.ember, size: 20),
+              const Icon(Icons.format_quote_rounded,
+                  color: LitColors.ember, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Motto',
@@ -924,7 +958,8 @@ class _EventResultsTable extends StatelessWidget {
           3: FlexColumnWidth(1),
         },
         border: TableBorder.symmetric(
-          inside: BorderSide(color: LitColors.ash.withValues(alpha: 0.2), width: 1),
+          inside:
+              BorderSide(color: LitColors.ash.withValues(alpha: 0.2), width: 1),
         ),
         children: [
           TableRow(
@@ -954,7 +989,8 @@ class _EventResultsTable extends StatelessWidget {
             TableRow(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                   child: Text(
                     result.eventName,
                     style: GoogleFonts.plusJakartaSans(
@@ -965,7 +1001,8 @@ class _EventResultsTable extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                   child: Text(
                     _getPositionText(result.position),
                     style: GoogleFonts.plusJakartaSans(
@@ -977,7 +1014,8 @@ class _EventResultsTable extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                   child: Text(
                     '${result.points}',
                     style: GoogleFonts.jetBrainsMono(
@@ -989,7 +1027,8 @@ class _EventResultsTable extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                   child: _ViewEventButton(eventId: result.eventId),
                 ),
               ],
@@ -1059,5 +1098,3 @@ class _ViewEventButton extends StatelessWidget {
     );
   }
 }
-
-
