@@ -230,9 +230,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
         // Check if already in slots
         if (_participants.any((p) => p?.id == currentStudent.id)) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Student is already in the participant list'),
-                backgroundColor: Colors.orange));
+            AppToast.warning(context, 'Student is already in the participant list', title: 'Already Added');
           }
         } else {
           // Check branch participation constraint
@@ -248,12 +246,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
             
             if (currentParticipants + pendingCount + 1 > maxParticipants) {
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Limit exceeded! Only $maxParticipants participants from ${currentStudent.branch} are allowed for this event.'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
+                AppToast.warning(context, 'Limit exceeded! Only $maxParticipants participants from ${currentStudent.branch} are allowed for this event.', title: 'Limit Exceeded');
               }
               setState(() {
                 _isLoading = false;
@@ -266,9 +259,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
           if (_selectedEvent!.isTeamEvent && _teamDepartment != null) {
             if (currentStudent.branch != _teamDepartment) {
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('This team belongs to ${_branchDisplayNames[_teamDepartment]}. Only ${_branchDisplayNames[_teamDepartment]} students can be added.'),
-                    backgroundColor: Colors.orange));
+                AppToast.warning(context, 'This team belongs to ${_branchDisplayNames[_teamDepartment]}. Only ${_branchDisplayNames[_teamDepartment]} students can be added.', title: 'Branch Mismatch');
               }
               setState(() {
                 _isLoading = false;
@@ -291,16 +282,12 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
           _manualUsnController.text = searchUsn;
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content:
-                  Text('Student not found. Please enter details manually.'),
-              backgroundColor: Colors.orange));
+          AppToast.warning(context, 'Student not found. Please enter details manually.', title: 'Student Not Found');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+        AppToast.failed(context, 'Error: $e', title: 'Error');
       }
     }
     setState(() {
@@ -466,9 +453,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
     final name = _manualNameController.text.trim();
     final usn = _manualUsnController.text.trim().toUpperCase();
     if (name.isEmpty || usn.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Please fill Name and USN'),
-          backgroundColor: Colors.red));
+      AppToast.warning(context, 'Please fill Name and USN', title: 'Missing Info');
       return;
     }
 
@@ -508,9 +493,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
 
       if (_participants.any((p) => p?.id == student.id)) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Student is already in the list'),
-              backgroundColor: Colors.orange));
+          AppToast.warning(context, 'Student is already in the list', title: 'Already in List');
         }
       } else {
         // Check branch participation constraint
@@ -526,12 +509,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
           
           if (currentParticipants + pendingCount + 1 > maxParticipants) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Limit exceeded! Only $maxParticipants participants from ${student.branch} are allowed for this event.'),
-                  backgroundColor: Colors.orange,
-                ),
-              );
+              AppToast.warning(context, 'Limit exceeded! Only $maxParticipants participants from ${student.branch} are allowed for this event.', title: 'Limit Exceeded');
             }
             setState(() {
               _isLoading = false;
@@ -543,9 +521,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
         if (_selectedEvent!.isTeamEvent && _teamDepartment != null) {
           if (student.branch != _teamDepartment) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('This team belongs to ${_branchDisplayNames[_teamDepartment]}. Only ${_branchDisplayNames[_teamDepartment]} students can be added.'),
-                  backgroundColor: Colors.orange));
+              AppToast.warning(context, 'This team belongs to ${_branchDisplayNames[_teamDepartment]}. Only ${_branchDisplayNames[_teamDepartment]} students can be added.', title: 'Branch Mismatch');
             }
             setState(() {
               _isLoading = false;
@@ -568,8 +544,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+        AppToast.failed(context, 'Error: $e', title: 'Error');
       }
     }
     setState(() => _isLoading = false);
@@ -599,12 +574,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
       final toRegisterCount = _participants.where((p) => p != null && p.branch == branch).length;
       if (current + toRegisterCount > maxVal) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Branch limit reached: $branch has reached the maximum of $maxVal participants for this event.'),
-              backgroundColor: Colors.orange,
-            ),
-          );
+          AppToast.warning(context, 'Branch limit reached: $branch has reached the maximum of $maxVal participants for this event.', title: 'Limit Reached');
         }
         return;
       }
@@ -613,14 +583,12 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
     // Validate
     if (_selectedEvent!.isTeamEvent) {
       if (_participants.any((p) => p == null)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please fill all team members')));
+        AppToast.warning(context, 'Please fill all team members', title: 'Incomplete Team');
         return;
       }
     } else {
       if (_participants[0] == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please add a student to register')));
+        AppToast.warning(context, 'Please add a student to register', title: 'Empty Slot');
         return;
       }
     }
@@ -646,9 +614,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
 
         if (existing != null) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Student already registered'),
-                backgroundColor: Colors.orange));
+            AppToast.warning(context, 'Student already registered for this event', title: 'Already Registered');
           }
           setState(() {
             _isRegistering = false;
@@ -682,9 +648,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
         }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Successfully registered ${student.name}'),
-              backgroundColor: Colors.green));
+          AppToast.completed(context, 'Successfully registered ${student.name}', title: 'Registered 🎉');
         }
       } else {
         // Team Registration
@@ -760,9 +724,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
         }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Successfully registered team!'),
-              backgroundColor: Colors.green));
+          AppToast.completed(context, 'Successfully registered team!', title: 'Team Registered 🎉');
         }
       }
 
@@ -779,9 +741,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Registration error: $e'),
-            backgroundColor: Colors.red));
+        AppToast.failed(context, 'Registration error: $e', title: 'Registration Failed');
       }
     }
     setState(() => _isRegistering = false);

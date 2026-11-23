@@ -93,7 +93,7 @@ final ongoingEventsProvider = StreamProvider<List<Event>>((ref) async* {
         }).toList();
       }
 
-      final list = (data as List).map((e) => Event.fromJson(e)).toList();
+      final list = data.map((e) => Event.fromJson(e)).toList();
       list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
       return list;
     } catch (_) {
@@ -220,6 +220,7 @@ class DashboardScreen extends ConsumerWidget {
               ref.invalidate(ongoingEventsProvider);
             },
             child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
               padding: context.r.pageInsets,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,6 +357,7 @@ class DashboardScreen extends ConsumerWidget {
               ref.invalidate(dashboardStatsProvider);
             },
             child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
               padding: r.pageInsets,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,13 +496,14 @@ class DashboardScreen extends ConsumerWidget {
     final isClosed = event.status == EventStatus.registrationClosed;
     final isOngoingEvent = isOngoing || event.status == EventStatus.ongoing;
 
-    return ClayCard(
-      margin: EdgeInsets.only(bottom: r.h(12)),
-      padding: EdgeInsets.all(r.w(14)),
-      borderColor: isRegOpen
-          ? LitColors.moss.withValues(alpha: 0.45)
-          : (isOngoingEvent ? LitColors.ember.withValues(alpha: 0.4) : null),
-      child: Row(
+    return RepaintBoundary(
+      child: ClayCard(
+        margin: EdgeInsets.only(bottom: r.h(12)),
+        padding: EdgeInsets.all(r.w(14)),
+        borderColor: isRegOpen
+            ? LitColors.moss.withValues(alpha: 0.45)
+            : (isOngoingEvent ? LitColors.ember.withValues(alpha: 0.4) : null),
+        child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
@@ -715,6 +718,7 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -1176,10 +1180,11 @@ class LiveRankingsWidget extends ConsumerWidget {
     final rankingsAsync = ref.watch(departmentRankingsProvider);
     final r = context.r;
 
-    return ClayCard(
-      width: double.infinity,
-      padding: EdgeInsets.all(r.w(12)),
-      child: Column(
+    return RepaintBoundary(
+      child: ClayCard(
+        width: double.infinity,
+        padding: EdgeInsets.all(r.w(12)),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -1332,60 +1337,21 @@ class LiveRankingsWidget extends ConsumerWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }
 
-class _FadeIn extends StatefulWidget {
+class _FadeIn extends StatelessWidget {
   final Widget child;
   final int delay;
 
   const _FadeIn({required this.child, required this.delay});
 
   @override
-  State<_FadeIn> createState() => _FadeInState();
-}
-
-class _FadeInState extends State<_FadeIn> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _opacity;
-  late Animation<Offset> _slide;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-
-    _opacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
-
-    _slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-    );
-
-    Future.delayed(Duration(milliseconds: widget.delay), () {
-      if (mounted) _controller.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _opacity,
-      child: SlideTransition(
-        position: _slide,
-        child: widget.child,
-      ),
+    return RepaintBoundary(
+      child: child,
     );
   }
 }

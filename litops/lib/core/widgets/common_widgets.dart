@@ -147,25 +147,22 @@ class ClayCard extends StatelessWidget {
         color: bg,
         borderRadius: br,
         border: borderColor != null ? Border.all(color: borderColor!, width: 1.3) : null,
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.55),
-            offset: const Offset(7, 7),
-            blurRadius: 15,
+            color: Color(0x66000000),
+            offset: Offset(0, 4),
+            blurRadius: 8,
           ),
           BoxShadow(
-            color: Colors.white.withValues(alpha: 0.025),
-            offset: const Offset(-4, -4),
-            blurRadius: 10,
+            color: Color(0x0AFFFFFF),
+            offset: Offset(-1, -1),
+            blurRadius: 3,
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: br,
-        child: Material(
-          color: Colors.transparent,
-          child: content,
-        ),
+      child: Material(
+        color: Colors.transparent,
+        child: content,
       ),
     );
   }
@@ -210,31 +207,23 @@ class ClayInsetCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: br,
-        border: border != null ? Border.fromBorderSide(border!) : null,
-      ),
-      child: ClipRRect(
-        borderRadius: br,
-        child: CustomPaint(
-          painter: InsetShadowPainter(
-            borderRadius: br,
-            insetShadows: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.6),
-                offset: const Offset(5, 5),
-                blurRadius: 11,
-              ),
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.02),
-                offset: const Offset(-3, -3),
-                blurRadius: 8,
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: content,
-          ),
+        border: border != null
+            ? Border.fromBorderSide(border!)
+            : Border.all(color: const Color(0x1FFFFFFF), width: 0.8),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0x40000000),
+            bg,
+            const Color(0x08FFFFFF),
+          ],
+          stops: const [0.0, 0.45, 1.0],
         ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: content,
       ),
     );
   }
@@ -803,16 +792,11 @@ class StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: LitColors.clay2,
         borderRadius: BorderRadius.circular(r.radius(14)),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
-            offset: const Offset(4, 4),
-            blurRadius: 9,
-          ),
-          BoxShadow(
-            color: Colors.white.withValues(alpha: 0.02),
-            offset: const Offset(-2, -2),
-            blurRadius: 5,
+            color: Color(0x66000000),
+            offset: Offset(0, 3),
+            blurRadius: 6,
           ),
         ],
       ),

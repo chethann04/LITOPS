@@ -8,7 +8,6 @@ import '../providers/student_providers.dart';
 import '../../admin/providers/admin_providers.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/models/models.dart';
-import '../../../core/config/role_config.dart';
 
 class StudentListScreen extends ConsumerStatefulWidget {
   const StudentListScreen({super.key});
@@ -202,15 +201,14 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                         ref.invalidate(registrationsListProvider);
                       },
                       child: ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                        cacheExtent: 800,
                         padding: EdgeInsets.only(
                           left: 16,
                           right: 16,
                           top: 1,
-                          bottom: r.bottomSpacing(
-                              extra:
-                                  00), // Ensure scrollable content clears the floating pagination bar
+                          bottom: r.bottomSpacing(extra: 100),
                         ),
-                        physics: const AlwaysScrollableScrollPhysics(),
                         itemCount: result.students.length,
                         itemBuilder: (context, index) {
                           final student = result.students[index];
@@ -220,8 +218,10 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                           final isHistorical = student.academicYear != null &&
                               student.academicYear != currentAcadYear;
 
-                          return _buildStudentCard(student, isRegistered,
-                              isHistorical, isSuperAdmin, r);
+                          return RepaintBoundary(
+                            child: _buildStudentCard(student, isRegistered,
+                                isHistorical, isSuperAdmin, r),
+                          );
                         },
                       ),
                     ),

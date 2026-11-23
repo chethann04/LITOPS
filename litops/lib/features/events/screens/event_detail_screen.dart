@@ -347,7 +347,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                   color: LitColors.ember,
                   backgroundColor: LitColors.clay,
                   child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
+                    physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                     padding: context.r.pageInsets,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1562,7 +1562,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       'created_by': userId,
     });
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Event duplicated')));
+      AppToast.success(context, 'Event duplicated successfully', title: 'Duplicated');
       ref.invalidate(eventDetailProvider(widget.eventId));
     }
   }
@@ -1570,7 +1570,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   Future<void> _archiveEvent(BuildContext context, WidgetRef ref) async {
     await SupabaseConfig.client.from(SupabaseTables.events).update({'status': 'archived'}).eq('id', widget.eventId);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Event archived')));
+      AppToast.success(context, 'Event archived successfully', title: 'Archived');
       ref.invalidate(eventDetailProvider(widget.eventId));
     }
   }

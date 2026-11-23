@@ -195,6 +195,8 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
                     : RefreshIndicator(
                         onRefresh: () async => ref.invalidate(eventsListProvider),
                         child: ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                          cacheExtent: 600,
                           padding: EdgeInsets.only(
                             left: r.pagePadding,
                             right: r.pagePadding,
@@ -204,7 +206,9 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
                           itemCount: filteredEvents.length,
                           itemBuilder: (context, index) {
                             final event = filteredEvents[index];
-                            return _buildEventCard(context, event);
+                            return RepaintBoundary(
+                              child: _buildEventCard(context, event),
+                            );
                           },
                         ),
                       ),

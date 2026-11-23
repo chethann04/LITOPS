@@ -211,8 +211,10 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
     } catch (e) {
       debugPrint('Error loading event and registrations: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading data: $e')),
+        AppToast.failed(
+          context,
+          'Error loading data: $e',
+          title: 'Load Error',
         );
       }
     } finally {
@@ -982,6 +984,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                     // Position Entries List
                     Expanded(
                       child: ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                        cacheExtent: 600,
                         padding: EdgeInsets.fromLTRB(
                             r.w(14), r.h(6), r.w(14), r.h(80)),
                         itemCount: _positionEntries.length,
@@ -998,8 +1002,9 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                                     orElse: () => null,
                                   );
 
-                          return Container(
-                            margin: EdgeInsets.only(bottom: r.h(12)),
+                          return RepaintBoundary(
+                            child: Container(
+                              margin: EdgeInsets.only(bottom: r.h(12)),
                             decoration: BoxDecoration(
                               color: const Color(0xFF191614),
                               borderRadius: BorderRadius.circular(14),
@@ -1238,7 +1243,8 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                                 ],
                               ),
                             ),
-                          );
+                          ),
+                        );
                         },
                       ),
                     ),

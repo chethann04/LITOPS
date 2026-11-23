@@ -114,7 +114,11 @@ DECLARE
 BEGIN
   -- Fire whenever status is set to 'results_published'
   IF NEW.status::TEXT = 'results_published' THEN
-    v_event_name := COALESCE(NEW.title, 'Event');
+    BEGIN
+      v_event_name := COALESCE(NEW.name, 'Event');
+    EXCEPTION WHEN OTHERS THEN
+      v_event_name := 'Event';
+    END;
     PERFORM public.notify_senior_members_on_results_published_rpc(NEW.id, v_event_name, NULL);
   END IF;
 
@@ -132,3 +136,45 @@ CREATE TRIGGER trg_notify_results_published
 AFTER UPDATE OF status ON public.events
 FOR EACH ROW
 EXECUTE FUNCTION public.notify_senior_members_on_results_published();
+
+-- 4. Robust calculate_sarvottam_points trigger function with fail-safe error handling
+CREATE OR REPLACE FUNCTION public.calculate_sarvottam_points()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_points INTEGER := 0;
+  v_reason TEXT := '';
+  v_branch TEXT;
+  v_event_id UUID;
+  v_student_id UUID;
+BEGIN
+  SELECT event_id, student_id INTO v_event_id, v_student_id FROM public.registrations WHERE id = NEW.registration_id;
+  
+  IF v_student_id IS NOT NULL THEN
+    SELECT branch INTO v_branch FROM public.student_master WHERE id = v_student_id;
+  END IF;
+
+  IF v_branch IS NULL AND NEW.team_id IS NOT NULL THEN
+    SELECT branch INTO v_branch FROM public.teams WHERE id = NEW.team_id;
+  END IF;
+
+  CASE NEW.position::TEXT
+    WHEN 'winner' THEN v_points := COALESCE(NEW.score, 10); v_reason := 'Winner';
+    WHEN 'runner_up' THEN v_points := COALESCE(NEW.score, 7); v_reason := 'Runner-Up';
+    WHEN 'second_runner_up' THEN v_points := COALESCE(NEW.score, 5); v_reason := 'Second Runner-Up';
+    ELSE
+      v_points := COALESCE(NEW.score, 0);
+      v_reason := COALESCE(NEW.remarks, 'Position Award');
+  END CASE;
+
+  IF v_branch IS NOT NULL AND v_points > 0 THEN
+    INSERT INTO public.sarvottam_points (event_id, branch, student_id, team_id, points, reason, position)
+    VALUES (COALESCE(v_event_id, NEW.event_id), v_branch, v_student_id, NEW.team_id, v_points, v_reason, NEW.position);
+  END IF;
+
+  RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Never allow point calculation exception to abort result insertion
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

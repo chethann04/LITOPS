@@ -9,7 +9,6 @@ import '../../../core/models/models.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/enums/enums.dart';
 import '../../../core/utils/app_utils.dart';
-import '../../../core/utils/responsive.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../results/screens/results_screen.dart'; // To use ResultsStandingsSheet
@@ -337,21 +336,6 @@ class LeaderboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLegendChip(String text) {
-    return ClayInsetCard(
-      borderRadius: 20,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      child: Text(
-        text,
-        style: GoogleFonts.plusJakartaSans(
-          color: LitColors.ash,
-          fontSize: 10.5,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
   // Centralized isJunior check is now handled via RoleConfig
 
   Widget _buildClubMembersSection(BuildContext context, WidgetRef ref) {
@@ -564,7 +548,8 @@ class LeaderboardScreen extends ConsumerWidget {
           color: LitColors.ember,
           backgroundColor: LitColors.clay,
           child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            cacheExtent: 600,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             itemCount: itemCount,
             itemBuilder: (context, index) {
@@ -628,7 +613,6 @@ class LeaderboardScreen extends ConsumerWidget {
 
   Widget _buildPublishedEventsTab(BuildContext context, WidgetRef ref) {
     final eventsAsync = ref.watch(publishedEventsProvider);
-    final r = Responsive(context);
 
     return eventsAsync.when(
       data: (events) {
@@ -645,7 +629,8 @@ class LeaderboardScreen extends ConsumerWidget {
           color: LitColors.ember,
           backgroundColor: LitColors.clay,
           child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            cacheExtent: 600,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             itemCount: events.length + 1,
             itemBuilder: (context, index) {
