@@ -404,7 +404,9 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
                   SizedBox(height: r.h(8)),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: InkWell(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
                       onTap: () => context.push('/results/score/${event.id}'),
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
@@ -440,6 +442,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
                           ],
                         ),
                       ),
+                    ),
                     ),
                   ),
                 ] else if (event.status == EventStatus.ongoing) ...[

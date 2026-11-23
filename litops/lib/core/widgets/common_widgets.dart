@@ -816,14 +816,16 @@ class StatCard extends StatelessWidget {
           ),
         ],
       ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(r.radius(14)),
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: r.w(14), vertical: r.h(10)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(r.radius(14)),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: r.w(14), vertical: r.h(10)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Text(
                 value,
                 style: GoogleFonts.fredoka(
@@ -845,6 +847,7 @@ class StatCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

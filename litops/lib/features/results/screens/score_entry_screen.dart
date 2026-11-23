@@ -1110,10 +1110,12 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                                   SizedBox(height: r.h(12)),
 
                                   // Participant Selector Box
-                                  InkWell(
-                                    onTap: () => _showCandidatePicker(entry),
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Container(
+                                  Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () => _showCandidatePicker(entry),
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Container(
                                       width: double.infinity,
                                       padding: EdgeInsets.symmetric(
                                           horizontal: r.w(12),
@@ -1231,6 +1233,7 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
                                               ],
                                             ),
                                     ),
+                                  ),
                                   ),
                                 ],
                               ),

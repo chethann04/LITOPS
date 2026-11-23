@@ -348,10 +348,12 @@ class _AppealsScreenState extends ConsumerState<AppealsScreen> {
                       ),
                       Padding(
                         padding: EdgeInsets.only(left: 16, right: 16, top: 12, bottom: context.r.listBottomPadding),
-                        child: InkWell(
-                          onTap: _showRaiseAppealSheet,
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _showRaiseAppealSheet,
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -378,6 +380,7 @@ class _AppealsScreenState extends ConsumerState<AppealsScreen> {
                                 ),
                               ],
                             ),
+                          ),
                           ),
                         ),
                       ),

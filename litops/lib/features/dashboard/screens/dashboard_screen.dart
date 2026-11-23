@@ -798,29 +798,32 @@ class DashboardScreen extends ConsumerWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            InkWell(
-              onTap: () {
-                final userId = SupabaseConfig.client.auth.currentUser?.id;
-                if (userId != null) {
-                  showModalBottomSheet(
-                    context: context,
-                    useRootNavigator: true,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (ctx) => NotificationsSheet(userId: userId),
-                  );
-                }
-              },
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding: EdgeInsets.all(r.w(7)),
-                margin: EdgeInsets.only(right: r.w(8)),
-                decoration: BoxDecoration(
-                  color: LitColors.clay2,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: LitColors.clay3),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  final userId = SupabaseConfig.client.auth.currentUser?.id;
+                  if (userId != null) {
+                    showModalBottomSheet(
+                      context: context,
+                      useRootNavigator: true,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (ctx) => NotificationsSheet(userId: userId),
+                    );
+                  }
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: EdgeInsets.all(r.w(7)),
+                  margin: EdgeInsets.only(right: r.w(8)),
+                  decoration: BoxDecoration(
+                    color: LitColors.clay2,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: LitColors.clay3),
+                  ),
+                  child: Icon(Icons.notifications_outlined, size: r.icon(17), color: LitColors.bone),
                 ),
-                child: Icon(Icons.notifications_outlined, size: r.icon(17), color: LitColors.bone),
               ),
             ),
             StatusChip(label: profile?.role.label ?? 'Crew', isCursive: true, color: LitColors.amber),

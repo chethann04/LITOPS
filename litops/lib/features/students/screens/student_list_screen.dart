@@ -253,7 +253,9 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
 
   Widget _buildFilterToggleButton(StudentFilterState filters) {
     final activeFilters = _getActiveFilterCount(filters);
-    return InkWell(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
       onTap: () {
         setState(() {
           _isFilterExpanded = !_isFilterExpanded;
@@ -324,6 +326,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               ),
           ],
         ),
+      ),
       ),
     );
   }

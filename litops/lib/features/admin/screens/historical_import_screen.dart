@@ -393,10 +393,12 @@ class _HistoricalImportScreenState extends ConsumerState<HistoricalImportScreen>
           ),
           const SizedBox(height: 12),
           
-          InkWell(
-            onTap: _pickFile,
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _pickFile,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
               decoration: BoxDecoration(
@@ -426,6 +428,7 @@ class _HistoricalImportScreenState extends ConsumerState<HistoricalImportScreen>
                   ],
                 ],
               ),
+            ),
             ),
           ),
           const SizedBox(height: 20),

@@ -1184,8 +1184,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                       ),
                     ),
                     SizedBox(height: r.h(8)),
-                    InkWell(
-                      onTap: () async {
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () async {
                         final picked = await showDatePicker(
                           context: ctx,
                           useRootNavigator: true,
@@ -1248,6 +1250,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                         ),
                       ),
                     ),
+                  ),
                     SizedBox(height: r.h(16)),
                     Text(
                       'EVENT TIME (OPTIONAL)',
@@ -1259,8 +1262,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                       ),
                     ),
                     SizedBox(height: r.h(8)),
-                    InkWell(
-                      onTap: () async {
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () async {
                         final picked = await showTimePicker(
                           context: ctx,
                           useRootNavigator: true,
@@ -1323,6 +1328,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                         ),
                       ),
                     ),
+                  ),
                   ],
                 ),
               ),

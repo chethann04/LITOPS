@@ -526,7 +526,9 @@ class _NotificationsSheetState extends State<NotificationsSheet> {
                               ? LitColors.amber
                               : (isRead ? LitColors.ash : LitColors.ember);
 
-                          return InkWell(
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
                             onTap: () {
                               if (!isRead) _markAsRead(n['id']);
                             },
@@ -629,10 +631,11 @@ class _NotificationsSheetState extends State<NotificationsSheet> {
                                   ),
                                 ],
                               ),
+                              ),
                             ),
                           );
                         },
-                      ),
+          ),
           ),
         ],
       ),
