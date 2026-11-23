@@ -7,6 +7,7 @@ import '../../../core/models/models.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/widgets/common_widgets.dart';
+import '../../../core/widgets/top_notification.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'event_detail_screen.dart';
 import 'events_screen.dart' show eventsListProvider;
@@ -159,16 +160,14 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         ref.invalidate(eventsListProvider);
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Event updated successfully')));
+          AppToast.success(context, 'Event updated successfully');
           context.pop();
         }
       } else {
         await SupabaseConfig.client.from(SupabaseTables.events).insert(data);
         ref.invalidate(eventsListProvider);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Event created successfully')));
+          AppToast.success(context, 'Event created successfully');
           context.pop();
         }
       }

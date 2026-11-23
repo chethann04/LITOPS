@@ -27,14 +27,20 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
   }
 
   Future<void> _loadEvents() async {
-    final data = await SupabaseConfig.client.from(SupabaseTables.events).select().order('name');
-    setState(() {
-      _events = (data as List).map((e) => Event.fromJson(e)).toList();
-      if (_events.isNotEmpty) {
-        _selectedEvent = _events.first;
-        _loadFeedback(_selectedEvent!.id);
-      }
-    });
+    try {
+      final data = await SupabaseConfig.client.from(SupabaseTables.events).select();
+      final list = (data as List).map((e) => Event.fromJson(e)).toList();
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      setState(() {
+        _events = list;
+        if (_events.isNotEmpty) {
+          _selectedEvent = _events.first;
+          _loadFeedback(_selectedEvent!.id);
+        }
+      });
+    } catch (e) {
+      debugPrint('Error loading feedback events: $e');
+    }
   }
 
   Future<void> _loadFeedback(String eventId) async {

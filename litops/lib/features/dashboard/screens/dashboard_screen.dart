@@ -67,22 +67,41 @@ final rulebookStreamProvider = StreamProvider<Rulebook?>((ref) async* {
 final ongoingEventsProvider = StreamProvider<List<Event>>((ref) async* {
   Future<List<Event>> fetchOngoing() async {
     try {
-      final data = await SupabaseConfig.client
-          .from(SupabaseTables.events)
-          .select()
-          .inFilter('status', [
-            EventStatus.ongoing.value,
-            EventStatus.registrationOpen.value,
-          ])
-          .order('name');
-      return (data as List).map((e) => Event.fromJson(e)).toList();
+      List<dynamic> data = [];
+      try {
+        data = await SupabaseConfig.client
+            .from(SupabaseTables.events)
+            .select()
+            .inFilter('status', [
+              EventStatus.ongoing.value,
+              EventStatus.registrationOpen.value,
+              'Ongoing',
+              'Registration Open',
+              'registration-open',
+            ]);
+      } catch (err) {
+        debugPrint('⚠️ [Dashboard] ongoingEventsProvider inFilter error: $err');
+      }
+
+      if (data.isEmpty) {
+        final allData = await SupabaseConfig.client
+            .from(SupabaseTables.events)
+            .select();
+        data = (allData as List).where((row) {
+          final s = (row['status'] as String? ?? '').toLowerCase().replaceAll(' ', '_').replaceAll('-', '_');
+          return s == 'ongoing' || s == 'registration_open';
+        }).toList();
+      }
+
+      final list = (data as List).map((e) => Event.fromJson(e)).toList();
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      return list;
     } catch (_) {
       return [];
     }
   }
 
   yield await fetchOngoing();
-
   await for (final _ in Stream.periodic(const Duration(seconds: 3))) {
     yield await fetchOngoing();
   }

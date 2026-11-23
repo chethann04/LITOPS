@@ -122,10 +122,18 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
       final data = await SupabaseConfig.client
           .from(SupabaseTables.events)
           .select()
-          .inFilter('status', ['registration_open', 'ongoing']).order('name');
+          .inFilter('status', [
+            'registration_open',
+            'ongoing',
+            'Registration Open',
+            'Ongoing',
+            'registration-open',
+          ]);
       if (mounted) {
+        final list = (data as List).map((e) => Event.fromJson(e)).toList();
+        list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
         setState(() {
-          _events = (data as List).map((e) => Event.fromJson(e)).toList();
+          _events = list;
           if (_selectedEvent != null) {
             _selectedEvent = _events.firstWhere((e) => e.id == _selectedEvent!.id,
                 orElse: () => _selectedEvent!);

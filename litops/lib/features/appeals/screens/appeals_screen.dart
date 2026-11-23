@@ -45,9 +45,9 @@ class _AppealsScreenState extends ConsumerState<AppealsScreen> {
     try {
       final eventsData = await SupabaseConfig.client
           .from(SupabaseTables.events)
-          .select('id, title')
-          .order('name');
+          .select('id, title');
       events = List<Map<String, dynamic>>.from(eventsData as List);
+      events.sort((a, b) => (a['title'] as String? ?? '').toLowerCase().compareTo((b['title'] as String? ?? '').toLowerCase()));
     } catch (e) {
       debugPrint('Error loading events for appeals: $e');
     } finally {

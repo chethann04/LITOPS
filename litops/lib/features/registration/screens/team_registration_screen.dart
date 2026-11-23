@@ -65,13 +65,26 @@ class _TeamRegistrationScreenState
   }
 
   Future<void> _loadTeamEvents() async {
-    final data = await SupabaseConfig.client
-        .from(SupabaseTables.events)
-        .select()
-        .eq('is_team_event', true)
-        .inFilter('status', ['registration_open', 'ongoing']).order('name');
-    setState(
-        () => _events = (data as List).map((e) => Event.fromJson(e)).toList());
+    try {
+      final data = await SupabaseConfig.client
+          .from(SupabaseTables.events)
+          .select()
+          .eq('is_team_event', true)
+          .inFilter('status', [
+            'registration_open',
+            'ongoing',
+            'Registration Open',
+            'Ongoing',
+            'registration-open',
+          ]);
+      final list = (data as List).map((e) => Event.fromJson(e)).toList();
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      if (mounted) {
+        setState(() => _events = list);
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error loading team events: $e');
+    }
   }
 
   Future<void> _addMember() async {

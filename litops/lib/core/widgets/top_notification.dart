@@ -232,7 +232,6 @@ class TopNotificationWidget extends ConsumerWidget {
       right: 0,
       child: Material(
         color: Colors.transparent,
-        type: MaterialType.transparency,
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -491,7 +490,7 @@ class _NotificationItemState extends State<NotificationItem> with TickerProvider
             scale: _scaleAnimation,
             child: Material(
               color: Colors.transparent,
-              type: MaterialType.transparency,
+              elevation: 0,
               child: Container(
                 margin: const EdgeInsets.fromLTRB(14, 8, 14, 4),
                 decoration: BoxDecoration(

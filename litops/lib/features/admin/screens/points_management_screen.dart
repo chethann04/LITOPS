@@ -14,9 +14,10 @@ import '../../auth/providers/auth_provider.dart';
 final adminEventsProvider = FutureProvider<List<Event>>((ref) async {
   final data = await SupabaseConfig.client
       .from(SupabaseTables.events)
-      .select()
-      .order('name');
-  return (data as List).map((e) => Event.fromJson(e)).toList();
+      .select();
+  final list = (data as List).map((e) => Event.fromJson(e)).toList();
+  list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  return list;
 });
 
 class PointsManagementScreen extends ConsumerStatefulWidget {

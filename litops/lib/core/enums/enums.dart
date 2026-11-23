@@ -200,8 +200,9 @@ enum EventStatus {
   const EventStatus(this.value, this.label);
 
   static EventStatus fromString(String value) {
+    final clean = value.trim().toLowerCase().replaceAll(' ', '_').replaceAll('-', '_');
     return EventStatus.values.firstWhere(
-      (e) => e.value == value,
+      (e) => e.value == clean || e.name.toLowerCase() == clean,
       orElse: () => EventStatus.draft,
     );
   }

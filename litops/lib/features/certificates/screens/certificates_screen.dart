@@ -36,12 +36,17 @@ class _CertificatesScreenState extends ConsumerState<CertificatesScreen> {
   }
 
   Future<void> _loadEvents() async {
-    final data = await SupabaseConfig.client
-        .from(SupabaseTables.events)
-        .select()
-        .inFilter('status', ['completed', 'results_published'])
-        .order('name');
-    setState(() => _events = (data as List).map((e) => Event.fromJson(e)).toList());
+    try {
+      final data = await SupabaseConfig.client
+          .from(SupabaseTables.events)
+          .select()
+          .inFilter('status', ['completed', 'results_published']);
+      final list = (data as List).map((e) => Event.fromJson(e)).toList();
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      setState(() => _events = list);
+    } catch (e) {
+      debugPrint('Error loading certificate events: $e');
+    }
   }
 
   Future<void> _loadCerts(String eventId) async {

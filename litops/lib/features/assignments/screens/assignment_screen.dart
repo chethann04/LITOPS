@@ -32,25 +32,30 @@ class _AssignmentScreenState extends ConsumerState<AssignmentScreen> {
   }
 
   Future<void> _loadData() async {
-    final eventData = await SupabaseConfig.client
-        .from(SupabaseTables.events)
-        .select()
-        .order('name');
-    final userData = await SupabaseConfig.client
-        .from(SupabaseTables.profiles)
-        .select()
-        .eq('is_active', true);
-    setState(() {
-      _events = (eventData as List).map((e) => Event.fromJson(e)).toList();
-      _users = (userData as List).map((u) => Profile.fromJson(u)).toList();
-      if (widget.initialEvent != null) {
-        _selectedEvent = _events.firstWhere(
-          (e) => e.id == widget.initialEvent!.id,
-          orElse: () => widget.initialEvent!,
-        );
-        _loadAssignments(_selectedEvent!.id);
-      }
-    });
+    try {
+      final eventData = await SupabaseConfig.client
+          .from(SupabaseTables.events)
+          .select();
+      final userData = await SupabaseConfig.client
+          .from(SupabaseTables.profiles)
+          .select()
+          .eq('is_active', true);
+      final list = (eventData as List).map((e) => Event.fromJson(e)).toList();
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      setState(() {
+        _events = list;
+        _users = (userData as List).map((u) => Profile.fromJson(u)).toList();
+        if (widget.initialEvent != null) {
+          _selectedEvent = _events.firstWhere(
+            (e) => e.id == widget.initialEvent!.id,
+            orElse: () => widget.initialEvent!,
+          );
+          _loadAssignments(_selectedEvent!.id);
+        }
+      });
+    } catch (e) {
+      debugPrint('Error loading assignments data: $e');
+    }
   }
 
   Future<void> _loadAssignments(String eventId) async {

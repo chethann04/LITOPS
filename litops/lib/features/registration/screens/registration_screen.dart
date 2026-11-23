@@ -23,12 +23,36 @@ import '../../../core/utils/app_utils.dart';
 final activeEventsProvider = StreamProvider<List<Event>>((ref) async* {
   Future<List<Event>> fetchEvents() async {
     try {
-      final data = await SupabaseConfig.client
-          .from(SupabaseTables.events)
-          .select()
-          .inFilter('status', ['registration_open', 'ongoing'])
-          .order('name');
-      return (data as List).map((e) => Event.fromJson(e)).toList();
+      List<dynamic> data = [];
+      try {
+        data = await SupabaseConfig.client
+            .from(SupabaseTables.events)
+            .select()
+            .inFilter('status', [
+              'registration_open',
+              'ongoing',
+              'Registration Open',
+              'Ongoing',
+              'registration-open',
+            ]);
+      } catch (queryErr) {
+        debugPrint('⚠️ [Registration] inFilter error: $queryErr');
+      }
+
+      if (data.isEmpty) {
+        // Resilient fallback: fetch all events and filter in Dart so no formatting/casing mismatch fails
+        final allData = await SupabaseConfig.client
+            .from(SupabaseTables.events)
+            .select();
+        data = (allData as List).where((row) {
+          final s = (row['status'] as String? ?? '').toLowerCase().replaceAll(' ', '_').replaceAll('-', '_');
+          return s == 'registration_open' || s == 'ongoing';
+        }).toList();
+      }
+
+      final list = (data as List).map((e) => Event.fromJson(e)).toList();
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      return list;
     } catch (e) {
       debugPrint('Error fetching active registration events: $e');
       return [];
@@ -145,15 +169,49 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> with Si
 
   Future<void> _loadEvents() async {
     try {
-      final data = await SupabaseConfig.client
-          .from(SupabaseTables.events)
-          .select()
-          .inFilter('status', ['registration_open', 'ongoing'])
-          .order('name');
-      
+      List<dynamic> data = [];
+      try {
+        data = await SupabaseConfig.client
+            .from(SupabaseTables.events)
+            .select()
+            .inFilter('status', [
+              'registration_open',
+              'ongoing',
+              'Registration Open',
+              'Ongoing',
+              'registration-open',
+            ]);
+      } catch (e) {
+        debugPrint('⚠️ [Registration] inFilter error: $e');
+      }
+
+      if (data.isEmpty) {
+        // Fallback: fetch all events and filter in memory
+        final allData = await SupabaseConfig.client
+            .from(SupabaseTables.events)
+            .select();
+        data = (allData as List).where((row) {
+          final s = (row['status'] as String? ?? '').toLowerCase().replaceAll(' ', '_').replaceAll('-', '_');
+          return s == 'registration_open' || s == 'ongoing';
+        }).toList();
+      }
+
       if (mounted) {
+        final eventsList = (data as List).map((e) => Event.fromJson(e)).toList();
+        // Sort in Dart by name safely
+        eventsList.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+        // If an initialEvent was passed, ensure it is available in the list
+        if (widget.initialEvent != null) {
+          final exists = eventsList.any((e) => e.id == widget.initialEvent!.id);
+          if (!exists) {
+            eventsList.add(widget.initialEvent!);
+            eventsList.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+          }
+        }
+
         setState(() {
-          _events = (data as List).map((e) => Event.fromJson(e)).toList();
+          _events = eventsList;
           if (widget.initialEvent != null) {
             final match = _events.where((e) => e.id == widget.initialEvent!.id).firstOrNull ?? widget.initialEvent!;
             _selectedEvent = match;

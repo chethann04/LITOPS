@@ -40,9 +40,10 @@ final attendanceEventsProvider = StreamProvider<List<Event>>((ref) async* {
       final res = await SupabaseConfig.client
           .from(SupabaseTables.events)
           .select()
-          .inFilter('status', ['ongoing', 'registration_open', 'registration_closed'])
-          .order('name');
-      return (res as List).map((e) => Event.fromJson(e)).toList();
+          .inFilter('status', ['ongoing', 'registration_open', 'registration_closed']);
+      final list = (res as List).map((e) => Event.fromJson(e)).toList();
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      return list;
     } catch (e) {
       debugPrint('Error fetching attendance events: $e');
       return [];
