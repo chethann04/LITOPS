@@ -11,6 +11,7 @@ import '../../../core/utils/responsive.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/utils/app_utils.dart';
+import '../../../core/widgets/top_notification.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'events_screen.dart' show eventsListProvider;
 
@@ -367,8 +368,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                                       ref.invalidate(eventDetailProvider(widget.eventId));
                                       ref.invalidate(eventsListProvider);
                                       if (mounted && context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Status updated to ${newStatus.label}')),
+                                        AppToast.updating(
+                                          context,
+                                          'Event status updated to ${newStatus.label}',
+                                          title: 'Status Updated',
                                         );
                                       }
                                     } catch (e) {
@@ -376,8 +379,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                                       if (mounted) {
                                         setState(() => _optimisticStatus = previousStatus);
                                         if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text('Failed to update event status: $e')),
+                                          AppToast.failed(
+                                            context,
+                                            'Failed to update event status: $e',
+                                            title: 'Status Update Failed',
                                           );
                                         }
                                       }
@@ -918,23 +923,19 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                               Navigator.pop(ctx);
                             }
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('📍 Venue updated to "${newVenue.isEmpty ? "TBD" : newVenue}"'),
-                                  backgroundColor: LitColors.moss,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              AppToast.success(
+                                context,
+                                'Venue updated to "${newVenue.isEmpty ? "TBD" : newVenue}"',
+                                title: '📍 Venue Updated',
                               );
                             }
                           } catch (err) {
                             setDialogState(() => saving = false);
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Failed to update venue: $err'),
-                                  backgroundColor: Colors.redAccent,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              AppToast.failed(
+                                context,
+                                'Failed to update venue: $err',
+                                title: 'Update Failed',
                               );
                             }
                           }
@@ -1228,23 +1229,19 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                               Navigator.pop(ctx);
                             }
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('📅 Date updated to ${AppUtils.formatDate(selectedDate)}'),
-                                  backgroundColor: LitColors.moss,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              AppToast.success(
+                                context,
+                                'Date updated to ${AppUtils.formatDate(selectedDate)}',
+                                title: '📅 Date Updated',
                               );
                             }
                           } catch (err) {
                             setDialogState(() => saving = false);
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Failed to update date: $err'),
-                                  backgroundColor: Colors.redAccent,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              AppToast.failed(
+                                context,
+                                'Failed to update date: $err',
+                                title: 'Update Failed',
                               );
                             }
                           }

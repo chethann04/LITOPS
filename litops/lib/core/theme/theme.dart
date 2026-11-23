@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   static const _primaryColor = Color(0xFFFF6A2C); // Ember
   static const _secondaryColor = Color(0xFFFFB14D); // Amber
-  static const _accentColor = Color(0xFF6FAE8F); // Moss
+  static const accentColor = Color(0xFF6FAE8F); // Moss
   static const _surfaceColor = Color(0xFF0A0A0A); // Void / Black
   static const _cardColor = Color(0xFF1D1A18); // Clay
   static const _errorColor = Color(0xFFFF5C5C); // Coral
@@ -48,6 +48,21 @@ class AppTheme {
         side: const BorderSide(color: Color(0xFF262220), width: 1.2),
       ),
       clipBehavior: Clip.antiAlias,
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: const Color(0xFF1D1A18),
+      elevation: 12,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFF2E2724), width: 1.2),
+      ),
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      contentTextStyle: GoogleFonts.plusJakartaSans(
+        color: const Color(0xFFF3ECE2),
+        fontWeight: FontWeight.w600,
+        fontSize: 13,
+      ),
     ),
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {

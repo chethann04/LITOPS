@@ -6,6 +6,7 @@ import '../../../core/models/models.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/widgets/common_widgets.dart';
+import '../../../core/widgets/top_notification.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../events/screens/events_screen.dart' show eventConstraintsSummaryProvider;
 import '../../../core/utils/responsive.dart';
@@ -82,8 +83,11 @@ class _TeamRegistrationScreenState
       final student = Student.fromJson(data);
       if (_members.any((m) => m.id == student.id)) {
         if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('Already added'), backgroundColor: LitColors.amber));
+          AppToast.warning(
+            context,
+            'Student already added to the participant list',
+            title: 'Already Added',
+          );
         }
         return;
       }
@@ -101,11 +105,10 @@ class _TeamRegistrationScreenState
         
         if (currentParticipants + pendingCount + 1 > maxParticipants) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Limit exceeded! Only $maxParticipants participants from ${student.branch} are allowed for this event.'),
-                backgroundColor: LitColors.coral,
-              ),
+            AppToast.failed(
+              context,
+              'Limit exceeded! Only $maxParticipants participants from ${student.branch} are allowed for this event.',
+              title: 'Branch Limit Reached',
             );
           }
           return;
@@ -121,8 +124,11 @@ class _TeamRegistrationScreenState
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: LitColors.coral));
+        AppToast.failed(
+          context,
+          'Error: $e',
+          title: 'Lookup Failed',
+        );
       }
     }
   }
@@ -144,11 +150,10 @@ class _TeamRegistrationScreenState
       final toRegisterCount = _members.where((m) => m.branch == branch).length;
       if (current + toRegisterCount > maxVal) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Branch limit reached: $branch has reached the maximum of $maxVal participants for this event.'),
-              backgroundColor: LitColors.coral,
-            ),
+          AppToast.failed(
+            context,
+            'Branch limit reached: $branch has reached the maximum of $maxVal participants for this event.',
+            title: 'Limit Exceeded',
           );
         }
         return;
@@ -193,10 +198,11 @@ class _TeamRegistrationScreenState
         });
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Team "${_teamNameCtrl.text}" registered with ${_members.length} members'),
-            backgroundColor: LitColors.moss));
+        AppToast.completed(
+          context,
+          'Team "${_teamNameCtrl.text}" registered with ${_members.length} members',
+          title: 'Team Registered 🎉',
+        );
         
         // Invalidate branch constraints summary
         ref.invalidate(eventConstraintsSummaryProvider(_selectedEvent!.id));
@@ -209,8 +215,11 @@ class _TeamRegistrationScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: LitColors.coral));
+        AppToast.failed(
+          context,
+          'Error: $e',
+          title: 'Registration Failed',
+        );
       }
     }
     setState(() => _saving = false);

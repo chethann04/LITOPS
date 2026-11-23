@@ -9,6 +9,7 @@ import '../../../core/supabase/supabase_tables.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/utils/app_utils.dart';
 import '../../../core/services/notification_service.dart';
+import '../../../core/widgets/top_notification.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../admin/providers/admin_providers.dart';
 import '../../events/screens/event_detail_screen.dart';
@@ -508,12 +509,10 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
 
   Future<void> _publishResults() async {
     if (_positionEntries.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'Please add at least one position (Winner/Runner-up) before publishing!'),
-          backgroundColor: Colors.amber,
-        ),
+      AppToast.warning(
+        context,
+        'Please add at least one position (Winner/Runner-up) before publishing!',
+        title: 'No Positions',
       );
       return;
     }
@@ -521,24 +520,20 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
     // Check each position has a selected candidate
     for (final pos in _positionEntries) {
       if (pos.selectedRegistrationId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Please select a participant for "${pos.positionName}" or remove it.'),
-            backgroundColor: Colors.amber,
-          ),
+        AppToast.warning(
+          context,
+          'Please select a participant for "${pos.positionName}" or remove it.',
+          title: 'Participant Missing',
         );
         return;
       }
 
       final pts = int.tryParse(pos.pointsController.text.trim());
       if (pts == null || pts < 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Please enter valid points (>= 0) for "${pos.positionName}".'),
-            backgroundColor: Colors.amber,
-          ),
+        AppToast.warning(
+          context,
+          'Please enter valid points (>= 0) for "${pos.positionName}".',
+          title: 'Invalid Points',
         );
         return;
       }
@@ -549,12 +544,10 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
         _positionEntries.map((p) => p.selectedRegistrationId!).toList();
     final uniqueIds = assignedIds.toSet();
     if (uniqueIds.length != assignedIds.length) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'The same participant cannot be assigned to multiple positions!'),
-          backgroundColor: Colors.amber,
-        ),
+      AppToast.warning(
+        context,
+        'The same participant cannot be assigned to multiple positions!',
+        title: 'Duplicate Participant',
       );
       return;
     }
@@ -734,12 +727,10 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                '🎉 Published $insertedCount position(s)! Leaderboard updated.'),
-            backgroundColor: LitColors.moss,
-          ),
+        AppToast.completed(
+          context,
+          'Published $insertedCount position(s)! Leaderboard updated.',
+          title: 'Results Published 🎉',
         );
         Navigator.pop(context);
       }
@@ -747,11 +738,10 @@ class _ScoreEntryScreenState extends ConsumerState<ScoreEntryScreen> {
       debugPrint('Error publishing results: $e');
       debugPrintStack(stackTrace: stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error publishing results: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
+        AppToast.failed(
+          context,
+          'Error publishing results: $e',
+          title: 'Publish Failed',
         );
       }
     } finally {
