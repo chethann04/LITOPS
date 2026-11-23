@@ -21,6 +21,18 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   RealtimeChannel? _notificationChannel;
+  final Map<String, DateTime> _handledNotificationKeys = {};
+
+  bool _isDuplicate(String key) {
+    if (key.isEmpty) return false;
+    final now = DateTime.now();
+    _handledNotificationKeys.removeWhere((_, time) => now.difference(time).inMinutes > 2);
+    if (_handledNotificationKeys.containsKey(key)) {
+      return true;
+    }
+    _handledNotificationKeys[key] = now;
+    return false;
+  }
 
   Future<void> initialize() async {
     debugPrint('NotificationService: Initializing...');
@@ -79,19 +91,31 @@ class NotificationService {
       // Listen for foreground FCM messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         debugPrint('NotificationService: Got FCM message in foreground: ${message.messageId}');
-        debugPrint('NotificationService: Message data: ${message.data}');
+        final msgId = message.messageId ?? (message.data['id'] as String? ?? '');
+        final senderId = message.data['sender_user_id'] as String?;
+        final currentUserId = SupabaseConfig.client.auth.currentUser?.id;
+
+        // Never notify the sender/publisher themselves
+        if (currentUserId != null && senderId == currentUserId) {
+          debugPrint('NotificationService: Ignoring FCM sent by current user ($currentUserId)');
+          return;
+        }
+
+        // Deduplicate against Realtime or duplicate FCM delivery
+        final dedupKey = msgId.isNotEmpty ? msgId : '${message.notification?.title}_${message.notification?.body}';
+        if (_isDuplicate(dedupKey)) {
+          debugPrint('NotificationService: Skipping duplicate FCM message: $dedupKey');
+          return;
+        }
+
         if (message.notification != null) {
           final title = message.notification!.title ?? 'New Notification';
           final body = message.notification!.body ?? '';
+          final isResult = title.toLowerCase().contains('result') || body.toLowerCase().contains('result');
           NotificationsNotifier.postGlobal(
             title: title,
             message: body,
-            type: NotificationType.info,
-          );
-          _showLocalNotification(
-            title: title,
-            body: body,
-            payload: message.data['id'],
+            type: isResult ? NotificationType.result : NotificationType.info,
           );
         }
       });
@@ -151,23 +175,34 @@ class NotificationService {
           callback: (payload) {
             debugPrint('NotificationService: Received new notification from Supabase: $payload');
             final newRecord = payload.newRecord;
+            final notifId = newRecord['id'] as String? ?? '';
+            final senderId = newRecord['sender_user_id'] as String?;
+            final eventId = newRecord['event_id'] as String? ?? '';
+            final notifTypeStr = newRecord['type'] as String? ?? '';
+
+            // 1. Never notify the sender/publisher themselves
+            if (senderId != null && senderId == userId) {
+              debugPrint('NotificationService: Ignoring Realtime notification sent by current user ($userId)');
+              return;
+            }
+
+            // 2. Deduplicate against FCM and duplicate Realtime events
+            final dedupKey = notifId.isNotEmpty ? notifId : '${eventId}_${notifTypeStr}_$userId';
+            if (_isDuplicate(dedupKey)) {
+              debugPrint('NotificationService: Skipping duplicate Realtime notification: $dedupKey');
+              return;
+            }
+
             final title = newRecord['title'] as String? ?? 'New Notification';
             final body = newRecord['message'] as String? ?? '';
             final isResult = title.toLowerCase().contains('result') || body.toLowerCase().contains('result');
             final notifType = isResult ? NotificationType.result : NotificationType.info;
 
-            // 1. Show floating heads-up in-app notification banner
+            // Show ONE single clean in-app toast
             NotificationsNotifier.postGlobal(
               title: title,
               message: body,
               type: notifType,
-            );
-
-            // 2. Also dispatch system tray notification
-            _showLocalNotification(
-              title: title,
-              body: body,
-              payload: newRecord['id'],
             );
           },
         )
@@ -232,7 +267,7 @@ class NotificationService {
     }
   }
 
-  Future<void> _showLocalNotification({
+  Future<void> showLocalNotification({
     required String title,
     required String body,
     String? payload,
@@ -289,13 +324,6 @@ class NotificationService {
       if (rpcRes != null) {
         final count = (rpcRes is int) ? rpcRes : int.tryParse(rpcRes.toString()) ?? 1;
         debugPrint('NotificationService: Database RPC dispatched results notifications to $count members.');
-
-        // Also post immediate local toast on the device
-        NotificationsNotifier.postGlobal(
-          title: title,
-          message: body,
-          type: NotificationType.result,
-        );
         return count;
       }
     } catch (rpcErr) {
@@ -314,6 +342,10 @@ class NotificationService {
       for (final p in profilesRes as List) {
         final id = p['id'] as String?;
         if (id == null) continue;
+        if (publisherUserId != null && id == publisherUserId) {
+          // Do not send notification to the publisher themselves
+          continue;
+        }
 
         final isActive = (p['is_active'] as bool?) ?? true;
         final profileStatus = p['profile_status'] as String? ?? 'approved';
@@ -390,13 +422,6 @@ class NotificationService {
           .insert(notificationRows);
 
       debugPrint('NotificationService: Successfully dispatched results_published notifications to ${notificationRows.length} 3rd and 4th year members.');
-
-      // Also post immediate local toast on device
-      NotificationsNotifier.postGlobal(
-        title: title,
-        message: body,
-        type: NotificationType.result,
-      );
 
       return notificationRows.length;
     } catch (e) {

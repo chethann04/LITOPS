@@ -67,6 +67,8 @@ BEGIN
     FROM public.profiles
     WHERE (is_active IS NULL OR is_active = true)
       AND (profile_status IS NULL OR profile_status != 'rejected')
+      -- Exclude publisher (the member publishing results doesn't need to notify themselves)
+      AND (v_publisher_id IS NULL OR id != v_publisher_id)
       -- Strictly exclude 1st and 2nd year members
       AND NOT (
         year IN (1, 2) OR 
