@@ -230,16 +230,20 @@ class TopNotificationWidget extends ConsumerWidget {
       top: 0,
       left: 0,
       right: 0,
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: notifications.map((notification) {
-            return NotificationItem(
-              key: Key(notification.id),
-              notification: notification,
-              onDismiss: () => ref.read(notificationsProvider.notifier).hideNotification(notification.id),
-            );
-          }).toList(),
+      child: Material(
+        color: Colors.transparent,
+        type: MaterialType.transparency,
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: notifications.map((notification) {
+              return NotificationItem(
+                key: Key(notification.id),
+                notification: notification,
+                onDismiss: () => ref.read(notificationsProvider.notifier).hideNotification(notification.id),
+              );
+            }).toList(),
+          ),
         ),
       ),
     );
@@ -485,186 +489,191 @@ class _NotificationItemState extends State<NotificationItem> with TickerProvider
           opacity: _fadeAnimation,
           child: ScaleTransition(
             scale: _scaleAnimation,
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(14, 8, 14, 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF181514),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: accentColor.withValues(alpha: 0.35),
-                  width: 1.2,
+            child: Material(
+              color: Colors.transparent,
+              type: MaterialType.transparency,
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF181514),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: accentColor.withValues(alpha: 0.35),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.60),
+                      blurRadius: 22,
+                      offset: const Offset(0, 8),
+                    ),
+                    BoxShadow(
+                      color: accentColor.withValues(alpha: 0.14),
+                      blurRadius: 12,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.60),
-                    blurRadius: 22,
-                    offset: const Offset(0, 8),
-                  ),
-                  BoxShadow(
-                    color: accentColor.withValues(alpha: 0.14),
-                    blurRadius: 12,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(
-                children: [
-                  // Ambient corner glow
-                  Positioned(
-                    top: -24,
-                    left: -24,
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: accentColor.withValues(alpha: 0.12),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  children: [
+                    // Ambient corner glow
+                    Positioned(
+                      top: -24,
+                      left: -24,
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: accentColor.withValues(alpha: 0.12),
+                        ),
                       ),
                     ),
-                  ),
-                  InkWell(
-                    onTap: widget.notification.onTap != null
-                        ? () {
-                            widget.notification.onTap!();
-                            _dismiss();
-                          }
-                        : null,
-                    borderRadius: BorderRadius.circular(18),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // Left Squircle Icon Badge
-                          Container(
-                            width: 38,
-                            height: 38,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: accentColor.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(11),
-                              border: Border.all(
-                                color: accentColor.withValues(alpha: 0.35),
-                                width: 1.0,
+                    InkWell(
+                      onTap: widget.notification.onTap != null
+                          ? () {
+                              widget.notification.onTap!();
+                              _dismiss();
+                            }
+                          : null,
+                      borderRadius: BorderRadius.circular(18),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Left Squircle Icon Badge
+                            Container(
+                              width: 38,
+                              height: 38,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: accentColor.withValues(alpha: 0.16),
+                                borderRadius: BorderRadius.circular(11),
+                                border: Border.all(
+                                  color: accentColor.withValues(alpha: 0.35),
+                                  width: 1.0,
+                                ),
                               ),
+                              child: _buildIcon(widget.notification.type, accentColor),
                             ),
-                            child: _buildIcon(widget.notification.type, accentColor),
-                          ),
-                          const SizedBox(width: 12),
-                          // Content Column
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        displayTitle,
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: LitColors.bone,
+                            const SizedBox(width: 12),
+                            // Content Column
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          displayTitle,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: LitColors.bone,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                        decoration: BoxDecoration(
+                                          color: accentColor.withValues(alpha: 0.16),
+                                          borderRadius: BorderRadius.circular(5),
+                                        ),
+                                        child: Text(
+                                          tagLabel,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 8.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: accentColor,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    widget.notification.message,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11.5,
+                                      color: LitColors.ash,
+                                      height: 1.3,
                                     ),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                      decoration: BoxDecoration(
-                                        color: accentColor.withValues(alpha: 0.16),
-                                        borderRadius: BorderRadius.circular(5),
-                                      ),
-                                      child: Text(
-                                        tagLabel,
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 8.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: accentColor,
-                                          letterSpacing: 0.3,
-                                        ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (widget.notification.actionLabel != null) ...[
+                                    const SizedBox(height: 6),
+                                    GestureDetector(
+                                      onTap: () {
+                                        widget.notification.onAction?.call();
+                                        _dismiss();
+                                      },
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            widget.notification.actionLabel!,
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: accentColor,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 13,
+                                            color: accentColor,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  widget.notification.message,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 11.5,
-                                    color: LitColors.ash,
-                                    height: 1.3,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (widget.notification.actionLabel != null) ...[
-                                  const SizedBox(height: 6),
-                                  GestureDetector(
-                                    onTap: () {
-                                      widget.notification.onAction?.call();
-                                      _dismiss();
-                                    },
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          widget.notification.actionLabel!,
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: accentColor,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Icon(
-                                          Icons.arrow_forward_rounded,
-                                          size: 13,
-                                          color: accentColor,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
                                 ],
-                              ],
+                              ),
                             ),
-                          ),
-                          // Close button
-                          IconButton(
-                            icon: const Icon(Icons.close_rounded, size: 16, color: LitColors.ash),
-                            splashRadius: 18,
-                            padding: const EdgeInsets.all(4),
-                            constraints: const BoxConstraints(),
-                            onPressed: _dismiss,
-                          ),
-                        ],
+                            // Close button
+                            GestureDetector(
+                              onTap: _dismiss,
+                              behavior: HitTestBehavior.opaque,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                child: const Icon(Icons.close_rounded, size: 16, color: LitColors.ash),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  // Sleek Bottom Progress Timer Indicator
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: AnimatedBuilder(
-                      animation: _progressController,
-                      builder: (context, _) {
-                        return LinearProgressIndicator(
-                          value: 1.0 - _progressController.value,
-                          backgroundColor: Colors.transparent,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            accentColor.withValues(alpha: 0.45),
-                          ),
-                          minHeight: 2.2,
-                        );
-                      },
+                    // Sleek Bottom Progress Timer Indicator
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: AnimatedBuilder(
+                        animation: _progressController,
+                        builder: (context, _) {
+                          return LinearProgressIndicator(
+                            value: 1.0 - _progressController.value,
+                            backgroundColor: Colors.transparent,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              accentColor.withValues(alpha: 0.45),
+                            ),
+                            minHeight: 2.2,
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
